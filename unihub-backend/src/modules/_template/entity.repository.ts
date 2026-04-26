@@ -1,6 +1,5 @@
-// import { prisma } from "../../config/db"; // Assuming you have a prisma client instance exported somewhere
 import type { EntityCreateDTO } from "./entity.schema";
-import { prisma } from "../../config/prisma";
+// import { prisma } from "../../config/prisma";
 
 export const EntityRepository = {
   async findAll(offset: number, limit: number) {

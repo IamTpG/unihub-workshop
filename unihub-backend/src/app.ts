@@ -3,10 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { responseWrapper } from "./core/middlewares/response.middleware";
 import { checkApiKey } from "./core/middlewares/auth.middleware";
-import {
-  notFoundHandler,
-  errorHandler,
-} from "./core/middlewares/error.middleware";
+import { notFoundHandler, errorHandler } from "./core/middlewares/error.middleware";
 // import entityRoutes from "./modules/_template/entity.routes";
 
 const app = express();

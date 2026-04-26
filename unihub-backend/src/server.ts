@@ -33,9 +33,7 @@ async function bootstrap() {
 
       // Force shutdown if connections take too long to close (e.g., 10 seconds)
       setTimeout(() => {
-        console.error(
-          "Could not close connections in time, forcefully shutting down",
-        );
+        console.error("Could not close connections in time, forcefully shutting down");
         process.exit(1);
       }, 10000);
     };

@@ -1,20 +1,19 @@
-import { Request, Response } from "express";
+export {};
 
 declare global {
   namespace Express {
     export interface Request {
-      // Allow any validated data to be attached
       validated: {
-        body?: any;
-        params?: any;
-        query?: any;
-        headers?: any;
+        body?: unknown;
+        params?: unknown;
+        query?: unknown;
+        headers?: unknown;
       };
     }
     export interface Response {
-      ok: (data: any, message?: string) => Response;
-      created: (message?: string, data?: any) => Response;
-      error: (message?: string, errors?: any[], status?: number) => Response;
+      ok: (data: unknown, message?: string) => Response;
+      created: (message?: string, data?: unknown) => Response;
+      error: (message?: string, errors?: unknown[], status?: number) => Response; // Changed any[] to unknown[]
       notFound: (message?: string) => Response;
     }
   }

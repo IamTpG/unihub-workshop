@@ -1,9 +1,9 @@
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
-  public readonly errors: any[];
+  public readonly errors: unknown[];
 
-  constructor(message: string, statusCode: number, errors: any[] = []) {
+  constructor(message: string, statusCode: number, errors: unknown[] = []) {
     super(message);
     Object.setPrototypeOf(this, new.target.prototype);
 
@@ -18,7 +18,7 @@ export class AppError extends Error {
 }
 
 export class BadRequestError extends AppError {
-  constructor(message = "Bad Request", errors: any[] = []) {
+  constructor(message = "Bad Request", errors: unknown[] = []) {
     super(message, 400, errors);
   }
 }
@@ -48,7 +48,7 @@ export class ConflictError extends AppError {
 }
 
 export class InternalServerError extends AppError {
-  constructor(message = "Internal Server Error", errors: any[] = []) {
+  constructor(message = "Internal Server Error", errors: unknown[] = []) {
     super(message, 500, errors);
   }
 }

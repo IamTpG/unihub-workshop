@@ -1,0 +1,32 @@
+{
+  "name": "unihub-workshop",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "unihub-backend/src/**/*.ts": [
+      "npm run format --prefix unihub-backend --",
+      "npm run lint:fix --prefix unihub-backend --",
+      "npm run lint --prefix unihub-backend --"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IamTpG/unihub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/IamTpG/unihub/issues"
+  },
+  "homepage": "https://github.com/IamTpG/unihub#readme",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  }
+}

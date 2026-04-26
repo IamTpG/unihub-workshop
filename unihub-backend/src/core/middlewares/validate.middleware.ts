@@ -9,17 +9,14 @@ interface ValidationSchemas {
 }
 
 export const validate =
-  (schemas: ValidationSchemas) =>
-  (req: Request, res: Response, next: NextFunction) => {
+  (schemas: ValidationSchemas) => (req: Request, res: Response, next: NextFunction) => {
     try {
       req.validated = req.validated || {}; // Initialize
 
       if (schemas.body) req.validated.body = schemas.body.parse(req.body);
-      if (schemas.params)
-        req.validated.params = schemas.params.parse(req.params);
+      if (schemas.params) req.validated.params = schemas.params.parse(req.params);
       if (schemas.query) req.validated.query = schemas.query.parse(req.query);
-      if (schemas.headers)
-        req.validated.headers = schemas.headers.parse(req.headers);
+      if (schemas.headers) req.validated.headers = schemas.headers.parse(req.headers);
 
       next();
     } catch (err) {
