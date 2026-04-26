@@ -1,3 +1,5 @@
+import type { Role } from "../../../generated/prisma";
+
 export {};
 
 declare global {
@@ -8,6 +10,10 @@ declare global {
         params?: unknown;
         query?: unknown;
         headers?: unknown;
+      };
+      user?: {
+        id: string;
+        role: Role;
       };
     }
     export interface Response {

@@ -1,13 +1,18 @@
 import { env } from "./config/env";
 import { prisma } from "./config/prisma";
+import { redis } from "./config/redis";
 import app from "./app";
+import "./workers/email.worker";
 
 const PORT = env.PORT || 3000;
 
 async function bootstrap() {
   try {
     await prisma.$connect();
-    console.log("PostgreSQL connected");
+    console.log("✓ PostgreSQL connected");
+
+    await redis.ping();
+    console.log("✓ Redis connected");
 
     const server = app.listen(PORT, () => {
       console.log(`UniHub API is running on http://localhost:${PORT}`);
@@ -22,6 +27,9 @@ async function bootstrap() {
         try {
           await prisma.$disconnect();
           console.log("PostgreSQL disconnected cleanly.");
+
+          await redis.quit();
+          console.log("Redis disconnected cleanly.");
 
           console.log("Graceful shutdown complete. Exiting process.");
           process.exit(0);
