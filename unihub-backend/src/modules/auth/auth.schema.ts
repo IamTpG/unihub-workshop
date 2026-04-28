@@ -13,17 +13,5 @@ export const verifyOtpSchema = {
   }),
 };
 
-// Refresh no longer needs a body, token comes from cookie
-export const refreshSchema = {
-  body: z.object({}),
-};
-
-// Logout no longer needs a body, token comes from cookie
-export const logoutSchema = {
-  body: z.object({}),
-};
-
 export type LoginInput = z.infer<typeof loginSchema.body>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema.body>;
-export type RefreshInput = z.infer<typeof refreshSchema.body>;
-export type LogoutInput = z.infer<typeof logoutSchema.body>;

@@ -63,7 +63,7 @@ Key capabilities:
 1. **Client** detects the access token is expired (or receives a `401 Token Expired` response).
 2. **Client** sends `POST /api/v1/auth/refresh`:
    - **React (Web):** The refresh token is automatically sent via the `httpOnly` cookie. No JS code touches it.
-   - **React Native (Mobile):** The app reads the refresh token from secure storage and sends it in the request body (legacy support) or via cookies if the mobile client supports it.
+   - **React Native (Mobile):** The app sends the request; the `refreshToken` is automatically included if the mobile client supports cookie management, or handled by the secure storage wrapper if using a custom cookie implementation.
 3. **Core API** hashes the incoming token and looks it up in `REFRESH_TOKENS`:
    - Checks `is_revoked = false` and `expires_at > now`.
    - If valid → proceed to step 4.
@@ -84,9 +84,8 @@ Key capabilities:
 
 **React Native (Mobile) — Axios Interceptor:**
 - Same interceptor pattern as web.
-- Reads the refresh token from `react-native-keychain`, sends it in the request body to `POST /auth/refresh`.
-- Stores the new token pair back into secure storage.
-- If refresh fails → navigates the user to the login screen.
+- The cookie is automatically handled by the mobile OS's cookie store (or manually injected if using a specific library like `react-native-cookies`).
+- If refresh fails (e.g., 401 response) → navigates the user to the login screen.
 
 ### 4. Mobile Offline Authentication
 1. **Staff member** logs in while connected to Wi-Fi (receives token pair via the standard OTP flow).

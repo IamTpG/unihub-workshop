@@ -6,6 +6,7 @@ import * as jwtUtils from "../../core/utils/jwt.util";
 import { env } from "../../config/env";
 import { redis } from "../../config/redis";
 import { AppError, TooManyRequestsError } from "../../core/errors/AppError";
+import type { Role } from "../../../generated/prisma";
 
 export class AuthService {
   async login(username: string) {
@@ -68,7 +69,7 @@ export class AuthService {
     await redis.del(rateLimitKey);
 
     // Issue tokens
-    return this.issueTokenPair(user.id, user.role as any);
+    return this.issueTokenPair(user.id, user.role as Role);
   }
 
   async refreshTokens(refreshToken: string) {
@@ -97,7 +98,7 @@ export class AuthService {
     const user = await authRepository.findUserById(tokenRecord.userId);
     if (!user) throw new AppError("User not found", 401);
 
-    return this.issueTokenPair(user.id, user.role as any, tokenRecord.familyId);
+    return this.issueTokenPair(user.id, user.role as Role, tokenRecord.familyId);
   }
 
   async logout(refreshToken: string) {
@@ -111,7 +112,7 @@ export class AuthService {
     return { message: "Logged out successfully" };
   }
 
-  private async issueTokenPair(userId: string, role: any, familyId?: string) {
+  private async issueTokenPair(userId: string, role: Role, familyId?: string) {
     const accessToken = jwtUtils.signAccessToken({ sub: userId, role });
     const refreshToken = jwtUtils.generateRefreshToken();
     const tokenHash = jwtUtils.hashToken(refreshToken);

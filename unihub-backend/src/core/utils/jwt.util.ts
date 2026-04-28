@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { type StringValue } from "ms";
 import crypto from "crypto";
 import { env } from "../../config/env";
 import type { Role } from "../../../generated/prisma";
@@ -10,7 +11,7 @@ export interface JwtPayload {
 
 export const signAccessToken = (payload: JwtPayload): string => {
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.JWT_ACCESS_TTL as any,
+    expiresIn: env.JWT_ACCESS_TTL as StringValue,
   });
 };
 

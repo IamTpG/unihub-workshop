@@ -22,24 +22,24 @@ The system SHALL issue an opaque refresh token alongside the access token. The r
 The system SHALL accept a refresh token, validate it, issue a new access + refresh token pair, and revoke the old refresh token. This implements single-use rotation.
 
 #### Scenario: Valid refresh token submitted
-- **WHEN** a client sends `POST /api/v1/auth/refresh` with `{ "refreshToken": "..." }` and the token matches a non-revoked, non-expired record
-- **THEN** the system SHALL mark the old refresh token as revoked, generate a new refresh token in the same `family_id`, issue a new access token, and return `200 OK` with `{ "accessToken": "...", "refreshToken": "..." }`
+- **WHEN** a client sends `POST /api/v1/auth/refresh` with a valid `refreshToken` cookie
+- **THEN** the system SHALL mark the old refresh token as revoked, generate a new refresh token in the same `family_id`, issue a new access token, and return `200 OK` with `{ "accessToken": "..." }` while setting the new refresh token in a secure cookie
 
 #### Scenario: Expired refresh token submitted
-- **WHEN** a client sends a refresh request with a token whose `expiresAt` is in the past
+- **WHEN** a client sends a refresh request and the `refreshToken` cookie is expired
 - **THEN** the system SHALL return `401 Unauthorized` with message "Refresh token expired. Please log in again."
 
 #### Scenario: Revoked refresh token reused (theft detection)
-- **WHEN** a client sends a refresh request with a token that is already marked as `isRevoked = true`
+- **WHEN** a client sends a refresh request and the `refreshToken` cookie matches a token that is already marked as `isRevoked = true`
 - **THEN** the system SHALL revoke ALL refresh tokens in that `familyId` (family-wide revocation) and return `401 Unauthorized` with message "Security alert: session revoked. Please log in again."
 
 ### Requirement: Logout
 The system SHALL allow an authenticated user to explicitly revoke their refresh token family, invalidating all active sessions for that family.
 
 #### Scenario: Successful logout
-- **WHEN** an authenticated client sends `POST /api/v1/auth/logout` with `{ "refreshToken": "..." }`
-- **THEN** the system SHALL revoke all refresh tokens in the matching `familyId` and return `200 OK` with message "Logged out successfully"
+- **WHEN** an authenticated client sends `POST /api/v1/auth/logout` with a valid `refreshToken` cookie
+- **THEN** the system SHALL revoke all refresh tokens in the matching `familyId`, clear the cookie, and return `200 OK` with message "Logged out successfully"
 
-#### Scenario: Logout with invalid refresh token
-- **WHEN** a client sends a logout request with a refresh token that does not match any record
-- **THEN** the system SHALL return `200 OK` with message "Logged out successfully" (no error, to prevent information leakage)
+#### Scenario: Logout with invalid or missing refresh token
+- **WHEN** a client sends a logout request and the `refreshToken` cookie is missing or invalid
+- **THEN** the system SHALL clear the cookie and return `200 OK` with message "Logged out successfully" (no error, to prevent information leakage)

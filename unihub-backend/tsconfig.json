@@ -44,5 +44,10 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*",
+    "eslint.config.js",
+    "prisma/seed.ts",
+    "prisma.config.ts",
+  ]
 }

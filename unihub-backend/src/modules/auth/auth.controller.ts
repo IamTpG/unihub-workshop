@@ -1,11 +1,6 @@
 import type { Request, Response, NextFunction, CookieOptions } from "express";
 import { authService } from "./auth.service";
-import type {
-  LoginInput,
-  VerifyOtpInput,
-  RefreshInput,
-  LogoutInput,
-} from "./auth.schema";
+import type { LoginInput, VerifyOtpInput } from "./auth.schema";
 import { env } from "../../config/env";
 import { UnauthorizedError } from "../../core/errors/AppError";
 
@@ -53,7 +48,7 @@ export class AuthController {
   }
 
   async refresh(
-    req: Request<Record<string, never>, Record<string, never>, RefreshInput>,
+    req: Request<Record<string, never>, Record<string, never>, Record<string, never>>,
     res: Response,
     next: NextFunction,
   ) {
@@ -75,7 +70,7 @@ export class AuthController {
   }
 
   async logout(
-    req: Request<Record<string, never>, Record<string, never>, LogoutInput>,
+    req: Request<Record<string, never>, Record<string, never>, Record<string, never>>,
     res: Response,
     next: NextFunction,
   ) {
