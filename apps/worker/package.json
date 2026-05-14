@@ -1,0 +1,27 @@
+{
+  "name": "@unihub/worker",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "lint": "tsc --noEmit",
+    "format": "prettier --write src"
+  },
+  "dependencies": {
+    "@unihub/shared": "^1.0.0",
+    "bullmq": "^5.76.2",
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.10.1",
+    "nodemailer": "^8.0.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/nodemailer": "^8.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}

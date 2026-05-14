@@ -4,13 +4,28 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:api": "npm run dev --workspace @unihub/api",
+    "build:api": "npm run build:shared && npm run db:generate && npm run build:db && npm run build --workspace @unihub/api",
+    "start:api": "npm run start --workspace @unihub/api",
+    "lint:api": "npm run lint --workspace @unihub/api",
+    "format:api": "npm run format --workspace @unihub/api",
+    "dev:worker": "npm run dev --workspace @unihub/worker",
+    "build:worker": "npm run build:shared && npm run build --workspace @unihub/worker",
+    "lint:worker": "npm run lint --workspace @unihub/worker",
+    "build:shared": "npm run build --workspace @unihub/shared",
+    "build:db": "npm run build --workspace @unihub/db",
+    "db:generate": "npm run generate --workspace @unihub/db",
+    "db:seed": "npm run seed --workspace @unihub/db"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "lint-staged": {
-    "unihub-backend/src/**/*.ts": [
-      "npm run format --prefix unihub-backend --",
-      "npm run lint:fix --prefix unihub-backend --",
-      "npm run lint --prefix unihub-backend --"
+    "apps/api/src/**/*.ts": [
+      "npm run format:api --",
+      "npm run lint:api --"
     ]
   },
   "repository": {

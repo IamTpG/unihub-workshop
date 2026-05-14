@@ -1,2 +1,6 @@
 node_modules/
-package-lock.json
+dist/
+generated/
+*.tsbuildinfo
+apps/*/package-lock.json
+packages/*/package-lock.json
