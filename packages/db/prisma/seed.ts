@@ -1,9 +1,12 @@
-import { PrismaClient } from "../generated/prisma";
+import "dotenv/config";
+import {
+  PrismaClient,
+  Role,
+  WorkshopStatus,
+  RegStatus,
+} from "../generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new pg.Pool({ connectionString });
@@ -11,42 +14,38 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("Seeding test users...");
+  console.log("🚀 Starting seeding process...");
 
-  const students = [
+  // --- 1. Seed Users ---
+  console.log("👥 Seeding users...");
+  const users = [
     {
       username: "22120001",
       fullName: "Student One",
       email: "student1@example.com",
-      role: "STUDENT" as const,
+      role: Role.STUDENT,
     },
     {
       username: "22120002",
       fullName: "Student Two",
       email: "student2@example.com",
-      role: "STUDENT" as const,
+      role: Role.STUDENT,
     },
-  ];
-
-  const staff = [
     {
       username: "staff_nguyen",
       fullName: "Staff Nguyen",
       email: "staff.nguyen@example.com",
-      role: "STAFF" as const,
+      role: Role.STAFF,
     },
-  ];
-
-  const admin = [
     {
       username: "admin_admin",
       fullName: "System Admin",
       email: "admin@example.com",
-      role: "ADMIN" as const,
+      role: Role.ADMIN,
     },
   ];
 
-  for (const u of [...students, ...staff, ...admin]) {
+  for (const u of users) {
     await prisma.user.upsert({
       where: { username: u.username },
       update: {},
@@ -54,14 +53,109 @@ async function main() {
     });
   }
 
-  console.log("Seeding complete! ✓");
+  // Lấy ra IDs để dùng cho seeding Registration sau này
+  const student1 = await prisma.user.findUnique({
+    where: { username: "22120001" },
+  });
+  const student2 = await prisma.user.findUnique({
+    where: { username: "22120002" },
+  });
+
+  // --- 2. Seed Workshops ---
+  console.log("🏫 Seeding workshops...");
+  const now = new Date();
+
+  const workshops = [
+    {
+      title: "Kỹ năng viết CV và Phỏng vấn",
+      description:
+        "Hướng dẫn cách viết CV chuyên nghiệp cho sinh viên IT mới ra trường.",
+      speakerName: "Dr. Lê Nam",
+      location: "Phòng A.202",
+      startTime: new Date(now.getTime() + 24 * 60 * 60 * 1000), // Ngày mai
+      endTime: new Date(now.getTime() + 26 * 60 * 60 * 1000),
+      capacity: 60,
+      availableSlots: 60,
+      price: 0,
+      status: WorkshopStatus.PUBLISHED,
+      aiSummary:
+        "Tóm tắt: Buổi workshop tập trung vào cấu trúc CV, cách nhấn mạnh kỹ năng và các câu hỏi phỏng vấn phổ biến.",
+    },
+    {
+      title: "Lập trình Backend với Node.js & Prisma",
+      description:
+        "Workshop chuyên sâu về xây dựng kiến trúc hệ thống chịu tải cao.",
+      speakerName: "Nguyễn Vibe Coder",
+      location: "Hội trường B",
+      startTime: new Date(now.getTime() + 48 * 60 * 60 * 1000), // 2 ngày tới
+      endTime: new Date(now.getTime() + 52 * 60 * 60 * 1000),
+      capacity: 100,
+      availableSlots: 100,
+      price: 50000, // Workshop có phí
+      status: WorkshopStatus.PUBLISHED,
+    },
+    {
+      title: "Workshop bí mật (Draft)",
+      description: "Nội dung chưa công bố.",
+      speakerName: "Ẩn danh",
+      location: "Phòng C.101",
+      startTime: new Date(now.getTime() + 72 * 60 * 60 * 1000),
+      endTime: new Date(now.getTime() + 74 * 60 * 60 * 1000),
+      capacity: 30,
+      availableSlots: 30,
+      price: 0,
+      status: WorkshopStatus.DRAFT,
+    },
+  ];
+
+  for (const w of workshops) {
+    await prisma.workshop.upsert({
+      where: {
+        // Vì Workshop chưa có trường unique cố định, ta dùng title để check (chỉ dùng cho seed)
+        id:
+          (await prisma.workshop.findFirst({ where: { title: w.title } }))
+            ?.id || "00000000-0000-0000-0000-000000000000",
+      },
+      update: {},
+      create: w,
+    });
+  }
+
+  // --- 3. Seed Registrations (Mẫu) ---
+  console.log("📝 Seeding registrations...");
+  const ws1 = await prisma.workshop.findFirst({
+    where: { title: "Kỹ năng viết CV và Phỏng vấn" },
+  });
+
+  if (student1 && ws1) {
+    await prisma.registration.upsert({
+      where: { idempotencyKey: "seed-key-1" },
+      update: {},
+      create: {
+        userId: student1.id,
+        workshopId: ws1.id,
+        status: RegStatus.PAID,
+        idempotencyKey: "seed-key-1",
+        checkedInAt: null,
+      },
+    });
+
+    // Sau khi seed 1 registration, cập nhật lại availableSlots
+    await prisma.workshop.update({
+      where: { id: ws1.id },
+      data: { availableSlots: { decrement: 1 } },
+    });
+  }
+
+  console.log("✅ Seeding complete! Database is ready.");
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("❌ Seed error:", e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });
