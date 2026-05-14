@@ -1,8 +1,8 @@
 schema: spec-driven
 
 context: |
-  Language: Vietnamese
-  All artifacts should be written in Vietnamese.
+  Language: English
+  All artifacts should be written in English.
   Project: UniHub Workshop
   Stack: React, TypeScript, Node.js, Express, Prisma, PostgreSQL (Neon), Redis, BullMQ
   Architecture: modular monolith with async workers
