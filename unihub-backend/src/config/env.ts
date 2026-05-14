@@ -11,7 +11,26 @@ const envSchema = z.object({
   API_KEY: z.string(),
 
   // Database
-  DATABASE_URL: z.url(),
+  DATABASE_URL: z.string().url(),
+
+  // Auth - JWT
+  JWT_ACCESS_SECRET: z.string(),
+  JWT_REFRESH_SECRET: z.string(),
+  JWT_ACCESS_TTL: z.string().default("15m"),
+  JWT_REFRESH_TTL: z.string().default("7d"),
+
+  // Auth - OTP
+  OTP_TTL: z.coerce.number().default(600), // 10 minutes in seconds
+  OTP_LENGTH: z.coerce.number().default(6),
+  OTP_MAX_ATTEMPTS: z.coerce.number().default(5),
+
+  // Redis
+  REDIS_URL: z.string(),
+
+  // Email (Gmail SMTP)
+  SMTP_USER: z.string(),
+  SMTP_PASS: z.string(),
+  EMAIL_FROM: z.string(),
 });
 
 const _env = envSchema.safeParse(process.env);
