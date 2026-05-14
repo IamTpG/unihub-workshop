@@ -14,6 +14,20 @@ enum Role {
   STAFF
 }
 
+enum WorkshopStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum RegStatus {
+  PENDING   // Trong hàng chờ BullMQ
+  HOLDING   // Đã giữ chỗ DB, đợi thanh toán
+  PAID      // Đã thanh toán / Hoàn tất
+  FAILED    // Thất bại
+  EXPIRED   // Quá hạn 10p
+}
+
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   username  String   @unique
@@ -25,6 +39,7 @@ model User {
 
   otpTokens     OtpToken[]
   refreshTokens RefreshToken[]
+  registrations Registration[]
 
   @@map("users")
 }
@@ -54,4 +69,48 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+model Workshop {
+  id             String         @id @default(uuid()) @db.Uuid
+  title          String
+  description    String?        @db.Text
+  speakerName    String?        @map("speaker_name")
+  location       String?
+  roomLayoutUrl  String?        @map("room_layout_url")
+  pdfUrl         String?        @map("pdf_url")
+  startTime      DateTime       @map("start_time")
+  endTime        DateTime       @map("end_time")
+  capacity       Int
+  availableSlots Int            @map("available_slots") // Dùng cho DB Atomic Update
+  price          Decimal        @default(0) @db.Decimal(10, 2)
+  status         WorkshopStatus @default(DRAFT)
+  aiSummary      String?        @map("ai_summary") @db.Text // Tóm tắt từ file PDF
+
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  registrations  Registration[]
+
+  @@map("workshops")
+}
+
+model Registration {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  workshopId     String    @map("workshop_id") @db.Uuid
+  status         RegStatus @default(PENDING)
+  idempotencyKey String    @unique @map("idempotency_key")
+  
+  paymentRef     String?   @map("payment_ref") 
+  checkedInAt    DateTime? @map("checked_in_at") 
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user           User      @relation(fields: [userId], references: [id])
+  workshop       Workshop  @relation(fields: [workshopId], references: [id])
+
+  @@unique([userId, workshopId]) 
+  @@map("registrations")
 }
