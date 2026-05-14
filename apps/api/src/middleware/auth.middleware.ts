@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { env } from "../infra/config/env";
 import * as jwtUtils from "../infra/auth/jwt";
 import type { Role } from "@unihub/db";
-import { UnauthorizedError, ForbiddenError } from "../infra/errors/AppError";
+import { UnauthorizedError } from "../infra/errors/AppError";
 
 /**
  * Global Layer 1: Verify static API Key
@@ -47,32 +47,4 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
   } catch {
     return next(new UnauthorizedError("Invalid or expired token"));
   }
-};
-
-/**
- * Selective Layer 3: Role-based Authorization
- *
- * Used on specific routes to restrict access to certain user roles.
- * Must be placed AFTER the `authenticate` middleware.
- *
- * @example
- * // Allow only admins
- * router.get("/stats", authenticate, authorize("ADMIN"), controller.getStats);
- *
- * @example
- * // Allow staff and admins
- * router.post("/workshops", authenticate, authorize("STAFF", "ADMIN"), controller.create);
- */
-export const authorize = (...allowedRoles: Role[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(new UnauthorizedError());
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(new ForbiddenError("Insufficient permissions"));
-    }
-
-    next();
-  };
 };
