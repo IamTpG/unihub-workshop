@@ -1,20 +1,33 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Language: Vietnamese
+  All artifacts should be written in Vietnamese.
+  Project: UniHub Workshop
+  Stack: React, TypeScript, Node.js, Express, Prisma, PostgreSQL (Neon), Redis, BullMQ
+  Architecture: modular monolith with async workers
+  Constraints:
+  - Team size: 2 developers
+  - Timeline: 4 evenings
+  - Prioritize shippable MVP and demoability
+  - Mobile features are implemented via responsive web app
+  - Offline check-in uses localStorage and sync API
+  Quality goals:
+  - Avoid overengineering
+  - Prefer simple, explicit modules
+  - Keep API contracts stable
+  - Docs may be refined after implementation, but must match code
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - State why this slice matters for the course requirements
+    - Define non-goals to control scope
+  specs:
+    - Use Given/When/Then
+    - Include unhappy paths and timeout/failure scenarios
+  design:
+    - Include sequence steps for critical flows
+    - Mention failure isolation and fallback behavior
+  tasks:
+    - Split work between Developer A and Developer B
+    - Keep tasks completable within one evening
