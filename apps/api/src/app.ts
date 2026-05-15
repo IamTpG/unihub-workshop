@@ -7,12 +7,14 @@ import { responseWrapper } from "./middleware/response.middleware";
 import { checkApiKey, authenticate } from "./middleware/auth.middleware";
 import { notFoundHandler, errorHandler } from "./middleware/error.middleware";
 import { registerRoutes } from "./routes";
+import { globalLimiter } from "./infra/rate-limit";
 // import entityRoutes from "./modules/_template/entity.routes";
 
 const app = express();
 
 // Global Middlewares
 app.use(helmet());
+app.use(globalLimiter);
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

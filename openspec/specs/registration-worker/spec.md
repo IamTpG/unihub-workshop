@@ -29,9 +29,24 @@ If a workshop has `price > 0`, the worker SHALL call `PaymentProvider.createInte
 - **WHEN** the worker processes a registration job for a workshop with `price > 0` and the payment provider responds successfully
 - **THEN** the Registration is updated to `status: HOLDING`, `paymentIntentId` is stored, `expiresAt` is set to 30 minutes from now, and a `payment-timeout` delayed job is enqueued
 
-#### Scenario: Payment provider unavailable (circuit breaker)
-- **WHEN** the worker calls `PaymentProvider.createIntent` and it throws an error
-- **THEN** the worker logs the error, sets Registration to `status: HOLDING` with no `paymentIntentId`, enqueues a `payment-timeout` job (30-minute delay), and the student is notified to retry payment within 30 minutes
+### Requirement: Payment provider circuit breaker
+The system SHALL wrap payment provider calls in the registration worker with a circuit breaker to prevent cascading failures.
+
+#### Scenario: Payment gateway responds normally (circuit CLOSED)
+- **WHEN** the circuit breaker is CLOSED and a payment call is made
+- **THEN** the call passes through normally and the registration is updated to `HOLDING` with a valid `paymentRef`
+
+#### Scenario: Payment gateway times out or fails (circuit CLOSED, call fails)
+- **WHEN** a payment call fails or times out
+- **THEN** the registration is set to `HOLDING` with `paymentRef: null`, a retry notification is enqueued, and a safety net timeout job is scheduled
+
+#### Scenario: Circuit opens after repeated failures
+- **WHEN** the error rate exceeds the threshold (e.g., 50% failures over minimum 5 calls)
+- **THEN** the circuit transitions to OPEN state and fails fast for subsequent calls
+
+#### Scenario: Circuit transitions to HALF-OPEN after cooldown
+- **WHEN** the cooldown period (e.g., 30 seconds) expires
+- **THEN** the circuit transitions to HALF-OPEN and allows a probe request to verify gateway health
 
 ### Requirement: Seat is released if payment times out
 The `payment-timeout` processor SHALL check the Registration status after 30 minutes. If still `HOLDING`, it SHALL update status to `EXPIRED`, increment `available_slots` in DB and Redis.
