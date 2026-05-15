@@ -1,0 +1,176 @@
+# Registration & Payment Flow — Smoke Tests
+# Run with VS Code REST Client extension (humao.rest-client)
+# Prerequisite: API running on localhost:3000, worker running
+
+@baseUrl = http://localhost:3000/api/v1
+@apiKey = your-api-key-here
+@studentToken = Bearer <student-jwt-here>
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP: Create and publish a test workshop (as ADMIN)
+# Replace {{workshopId}} with the returned id
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Create free workshop (price = 0)
+POST {{baseUrl}}/admin/workshops
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "title": "Free Workshop Test",
+  "startTime": "2026-06-01T09:00:00.000Z",
+  "endTime": "2026-06-01T11:00:00.000Z",
+  "capacity": 50,
+  "availableSlots": 50,
+  "price": 0,
+  "status": "PUBLISHED"
+}
+
+### Create paid workshop (price > 0)
+POST {{baseUrl}}/admin/workshops
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "title": "Paid Workshop Test",
+  "startTime": "2026-06-02T09:00:00.000Z",
+  "endTime": "2026-06-02T11:00:00.000Z",
+  "capacity": 50,
+  "availableSlots": 50,
+  "price": 150000,
+  "status": "PUBLISHED"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEST 10.1: Free workshop → PAID via worker
+# Expected: 202 Accepted with jobId; worker transitions Registration to PAID
+# ─────────────────────────────────────────────────────────────────────────────
+
+@freeWorkshopId = <replace-with-free-workshop-id>
+@idempotencyKey1 = test-key-free-001
+
+### Register for free workshop
+POST {{baseUrl}}/workshops/{{freeWorkshopId}}/register
+x-api-key: {{apiKey}}
+x-idempotency-key: {{idempotencyKey1}}
+{{studentToken}}
+Content-Type: application/json
+
+{}
+
+# → Check DB: SELECT * FROM registrations WHERE workshop_id = '...' AND status = 'PAID';
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEST 10.2: Paid workshop → HOLDING → EXPIRED (timeout)
+# Expected: Registration HOLDING with expiresAt; after 30 min → EXPIRED + slot released
+# ─────────────────────────────────────────────────────────────────────────────
+
+@paidWorkshopId = <replace-with-paid-workshop-id>
+@idempotencyKey2 = test-key-paid-001
+
+### Register for paid workshop
+POST {{baseUrl}}/workshops/{{paidWorkshopId}}/register
+x-api-key: {{apiKey}}
+x-idempotency-key: {{idempotencyKey2}}
+{{studentToken}}
+Content-Type: application/json
+
+{}
+
+# → Check DB: SELECT * FROM registrations WHERE workshop_id = '...' AND status = 'HOLDING';
+# → After timeout job fires (30 min delay in prod, can reduce for test):
+#   SELECT * FROM registrations WHERE status = 'EXPIRED';
+#   SELECT available_slots FROM workshops WHERE id = '...'; -- should be back to original
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEST 10.3: Idempotency — duplicate request returns cached 202
+# ─────────────────────────────────────────────────────────────────────────────
+
+@idempotencyKey3 = test-key-idempotent-001
+
+### First request
+POST {{baseUrl}}/workshops/{{freeWorkshopId}}/register
+x-api-key: {{apiKey}}
+x-idempotency-key: {{idempotencyKey3}}
+{{studentToken}}
+Content-Type: application/json
+
+{}
+
+###
+# Second request with SAME key — should return SAME 202 jobId from cache, no new job
+POST {{baseUrl}}/workshops/{{freeWorkshopId}}/register
+x-api-key: {{apiKey}}
+x-idempotency-key: {{idempotencyKey3}}
+{{studentToken}}
+Content-Type: application/json
+
+{}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEST 10.4: Workshop full → 400 Workshop Full
+# Setup: SET workshop:{id}:slots 0 in Redis before running
+# ─────────────────────────────────────────────────────────────────────────────
+
+@idempotencyKey4 = test-key-full-001
+
+### Attempt to register when slots = 0 (pre-seed Redis with 0)
+POST {{baseUrl}}/workshops/{{freeWorkshopId}}/register
+x-api-key: {{apiKey}}
+x-idempotency-key: {{idempotencyKey4}}
+{{studentToken}}
+Content-Type: application/json
+
+{}
+
+# Expected: 400 { "error": "Workshop Full" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEST 10.5: Webhook mock — PAYMENT_SUCCEEDED → Registration PAID
+# Prerequisite: A Registration in HOLDING status with a paymentRef
+# ─────────────────────────────────────────────────────────────────────────────
+
+@registrationId = <replace-with-registration-id>
+@intentId = <replace-with-payment-ref-from-db>
+
+### Send PAYMENT_SUCCEEDED webhook
+POST {{baseUrl}}/payments/webhook/mock
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "eventType": "PAYMENT_SUCCEEDED",
+  "intentId": "{{intentId}}",
+  "eventId": "evt_test_001"
+}
+
+# Expected: 200 { "received": true }
+# DB check: SELECT status, qr_stub FROM registrations WHERE id = '{{registrationId}}';
+# → status = 'PAID', qr_stub is set
+
+### Send PAYMENT_FAILED webhook (with different eventId for idempotency)
+POST {{baseUrl}}/payments/webhook/mock
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "eventType": "PAYMENT_FAILED",
+  "intentId": "{{intentId}}",
+  "eventId": "evt_test_002"
+}
+
+# Expected: 200 { "received": true }
+# DB check: status = 'FAILED', workshop available_slots incremented
+
+### Replay same webhook (idempotency check — should NOT re-process)
+POST {{baseUrl}}/payments/webhook/mock
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "eventType": "PAYMENT_FAILED",
+  "intentId": "{{intentId}}",
+  "eventId": "evt_test_002"
+}
+
+# Expected: 200 { "received": true } — same response, no duplicate processing
