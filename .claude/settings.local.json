@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(opsx:explore)",
+      "Skill(opsx:propose)",
+      "Bash(openspec new *)",
+      "Bash(openspec status *)",
+      "Bash(openspec instructions *)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:3000/api/v1/health)"
+    ]
+  }
+}

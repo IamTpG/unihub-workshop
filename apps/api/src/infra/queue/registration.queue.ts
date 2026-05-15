@@ -1,22 +1,11 @@
-import IORedis from "ioredis";
 import { Queue } from "bullmq";
 import {
-  EMAIL_OTP_QUEUE_NAME,
   REGISTRATION_QUEUE_NAME,
-  PAYMENT_TIMEOUT_QUEUE_NAME,
   NOTIFICATION_QUEUE_NAME,
-  type OtpEmailJobData,
   type RegistrationJobData,
-  type PaymentTimeoutJobData,
   type NotificationJobData,
 } from "@unihub/shared";
-import { requireEnv } from "./env.js";
-
-const redisUrl = requireEnv("REDIS_URL");
-
-export const redis = new IORedis(redisUrl, {
-  maxRetriesPerRequest: null,
-});
+import { redis } from "../redis/redis.js";
 
 const defaultJobOptions = {
   attempts: 3,
@@ -25,17 +14,7 @@ const defaultJobOptions = {
   removeOnFail: false,
 };
 
-export const emailOtpQueue = new Queue<OtpEmailJobData>(EMAIL_OTP_QUEUE_NAME, {
-  connection: redis,
-  defaultJobOptions,
-});
-
 export const registrationQueue = new Queue<RegistrationJobData>(REGISTRATION_QUEUE_NAME, {
-  connection: redis,
-  defaultJobOptions,
-});
-
-export const paymentTimeoutQueue = new Queue<PaymentTimeoutJobData>(PAYMENT_TIMEOUT_QUEUE_NAME, {
   connection: redis,
   defaultJobOptions,
 });
