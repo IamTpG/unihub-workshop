@@ -12,12 +12,18 @@ export const AdminShell: React.FC = () => {
     navigate('/login');
   };
 
-  const getLinkStyle = (path: string) => ({
-    ...navLinkStyle,
-    backgroundColor: location.pathname === path ? 'var(--accent-bg)' : 'transparent',
-    color: location.pathname === path ? 'var(--accent)' : 'var(--text)',
-    fontWeight: location.pathname === path ? '600' : '400',
-  });
+  const getLinkStyle = (path: string) => {
+    const isActive = path === '/admin' 
+      ? location.pathname === '/admin'
+      : location.pathname.startsWith(path);
+
+    return {
+      ...navLinkStyle,
+      backgroundColor: isActive ? 'var(--accent-bg)' : 'transparent',
+      color: isActive ? 'var(--accent)' : 'var(--text)',
+      fontWeight: isActive ? '600' : '400',
+    };
+  };
 
   return (
     <div style={containerStyle}>

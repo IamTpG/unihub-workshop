@@ -44,3 +44,45 @@ export const formatWeekRange = (startOfWeek: Date): string => {
   const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   return `${startStr} - ${endStr}`;
 };
+
+/**
+ * Standardizes representation of full human date + time.
+ * Example output: "Friday, May 15, 2026 @ 04:00 PM"
+ */
+export const formatFullDateTime = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const dateFmt = new Intl.DateTimeFormat('en-US', { dateStyle: 'full' }).format(date);
+    const timeFmt = formatTime(dateString);
+    return `${dateFmt} @ ${timeFmt}`;
+  } catch {
+    return dateString;
+  }
+};
+
+/**
+ * Formats a span between two times into a clean, non-redundant representation.
+ * If times share a day: "Friday, May 15, 2026 @ 08:00 AM - 10:00 AM"
+ * If separate days: "Friday, May 15, 08:00 AM to Saturday, May 16, 10:00 AM"
+ */
+export const formatDateTimeRange = (startString: string, endString: string): string => {
+  try {
+    const start = new Date(startString);
+    const end = new Date(endString);
+    const dateFmt = new Intl.DateTimeFormat('en-US', { dateStyle: 'full' });
+    
+    const sameDay = start.toDateString() === end.toDateString();
+    const startTimeStr = formatTime(startString);
+    const endTimeStr = formatTime(endString);
+    
+    if (sameDay) {
+      return `${dateFmt.format(start)} @ ${startTimeStr} - ${endTimeStr}`;
+    }
+    
+    // For multi-day: include basic date fields alongside time for compactness
+    const baseDateFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    return `${baseDateFmt.format(start)}, ${startTimeStr} to ${baseDateFmt.format(end)}, ${endTimeStr}`;
+  } catch {
+    return `${startString} - ${endString}`;
+  }
+};

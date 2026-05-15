@@ -12,6 +12,12 @@ import StaffDesk from '../pages/staff/Desk';
 import Unauthorized from '../pages/public/Unauthorized';
 import Login from '../pages/public/Login';
 
+// Admin Workshop Components
+import { WorkshopList as AdminWorkshopList } from '../pages/admin/workshops/WorkshopList';
+import { WorkshopCreate as AdminWorkshopCreate } from '../pages/admin/workshops/WorkshopCreate';
+import { WorkshopDetail as AdminWorkshopDetail } from '../pages/admin/workshops/WorkshopDetail';
+import { WorkshopEdit as AdminWorkshopEdit } from '../pages/admin/workshops/WorkshopEdit';
+
 
 
 export const router = createBrowserRouter([
@@ -35,7 +41,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin',
     element: (
-      <ProtectedRoute allowedRoles={['ADMIN', 'STUDENT']}>
+      <ProtectedRoute allowedRoles={['ADMIN']}>
         <AdminShell />
       </ProtectedRoute>
     ),
@@ -46,7 +52,19 @@ export const router = createBrowserRouter([
       },
       {
         path: 'workshops',
-        element: <div style={{ textAlign: 'left' }}><h1>Manage Workshops</h1><p style={{color:'var(--text)'}}>Workshop configuration panel.</p></div>,
+        element: <AdminWorkshopList />,
+      },
+      {
+        path: 'workshops/new',
+        element: <AdminWorkshopCreate />,
+      },
+      {
+        path: 'workshops/:id',
+        element: <AdminWorkshopDetail />,
+      },
+      {
+        path: 'workshops/:id/edit',
+        element: <AdminWorkshopEdit />,
       },
     ],
   },

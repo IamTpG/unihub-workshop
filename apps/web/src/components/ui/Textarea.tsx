@@ -1,12 +1,12 @@
 import React from 'react';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
   headerRight?: React.ReactNode;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, error, headerRight, style, ...props }, ref) => {
     const containerStyle: React.CSSProperties = {
       display: 'flex',
@@ -29,7 +29,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       color: 'var(--text-h)',
     };
 
-    const inputStyle: React.CSSProperties = {
+    const textareaStyle: React.CSSProperties = {
       padding: '12px 16px',
       borderRadius: '8px',
       border: `1px solid ${error ? '#fca5a5' : 'var(--border)'}`,
@@ -38,8 +38,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       color: 'var(--text-h)',
       outline: 'none',
       width: '100%',
+      minHeight: '100px',
       boxSizing: 'border-box',
       transition: 'border-color 0.2s',
+      resize: 'vertical',
+      fontFamily: 'inherit',
+      lineHeight: '1.5',
     };
 
     return (
@@ -50,12 +54,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {headerRight}
           </div>
         )}
-        <input ref={ref} {...props} style={{ ...inputStyle, ...style }} />
+        <textarea ref={ref} {...props} style={{ ...textareaStyle, ...style }} />
         {error && <span style={{ fontSize: '12px', color: '#dc2626', marginTop: '2px' }}>{error}</span>}
       </div>
     );
   }
 );
 
-Input.displayName = 'Input';
+Textarea.displayName = 'Textarea';
 

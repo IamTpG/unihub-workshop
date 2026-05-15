@@ -26,13 +26,15 @@ const workshopRawShape = z.object({
   status: z.nativeEnum(WorkshopStatus).optional(),
 });
 
-export const createWorkshopSchema = workshopRawShape.refine(
-  (data) => data.endTime > data.startTime,
-  {
+export const createWorkshopSchema = workshopRawShape
+  .refine((data) => data.startTime > new Date(), {
+    path: ["startTime"],
+    message: "startTime must be in the future",
+  })
+  .refine((data) => data.endTime > data.startTime, {
     path: ["endTime"],
     message: "endTime must be after startTime",
-  },
-);
+  });
 
 export const updateWorkshopSchema = workshopRawShape
   .partial()
