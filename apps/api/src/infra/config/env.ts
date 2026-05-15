@@ -31,6 +31,9 @@ const envSchema = z.object({
   SMTP_USER: z.string(),
   SMTP_PASS: z.string(),
   EMAIL_FROM: z.string(),
+
+  // CORS Access Control Origin
+  CORS_ORIGIN: z.string(),
 });
 
 const _env = envSchema.safeParse(process.env);

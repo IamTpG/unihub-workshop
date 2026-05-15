@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import { env } from "./infra/config/env";
 import { responseWrapper } from "./middleware/response.middleware";
 import { checkApiKey, authenticate } from "./middleware/auth.middleware";
 import { notFoundHandler, errorHandler } from "./middleware/error.middleware";
@@ -12,7 +13,7 @@ const app = express();
 
 // Global Middlewares
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
