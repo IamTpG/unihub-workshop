@@ -12,6 +12,7 @@
     "format": "prettier --write src"
   },
   "dependencies": {
+    "@unihub/db": "^1.0.0",
     "@unihub/shared": "^1.0.0",
     "bullmq": "^5.76.2",
     "dotenv": "^17.4.2",
