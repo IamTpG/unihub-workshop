@@ -67,7 +67,7 @@ interface AdminWorkshopState {
   clearError: () => void;
 }
 
-const getErrorMessage = (err: unknown, fallback: string): string => {
+export const getErrorMessage = (err: unknown, fallback: string): string => {
   if (axios.isAxiosError(err)) {
     return err.response?.data?.message || fallback;
   }

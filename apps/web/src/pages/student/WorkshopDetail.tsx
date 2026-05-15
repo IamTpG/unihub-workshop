@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useWorkshopStore } from '../../stores/workshopStore';
 import { Button } from '../../components/ui/Button';
 
-import { formatDate, formatTime } from '../../utils/date';
+import { formatDate, formatTime, formatDateTimeRange } from '../../utils/date';
 import { 
   DetailPresenterCard, 
   DetailSummaryCard, 
@@ -47,6 +47,8 @@ const WorkshopDetail: React.FC = () => {
   const priceDisplay = isPaid ? `$${workshop.price}` : 'Free';
   const seatsRemainingText = `${workshop.capacity - workshop.availableSlots}/${workshop.capacity} seats`;
 
+  const isSameDay = new Date(workshop.startTime).toDateString() === new Date(workshop.endTime).toDateString();
+
   return (
     <div style={pageContainer}>
       <button style={backBtnStyle} onClick={() => navigate(-1)}>
@@ -58,19 +60,31 @@ const WorkshopDetail: React.FC = () => {
       <h1 style={titleStyle}>{workshop.title}</h1>
       
       <div style={dateTimeRowStyle}>
-        <div style={iconTextStyle}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          {formatDate(workshop.startTime)}
-        </div>
-        <div style={iconTextStyle}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-          </svg>
-          {formatTime(workshop.startTime)} – {formatTime(workshop.endTime)}
-        </div>
+        {isSameDay ? (
+          <>
+            <div style={iconTextStyle}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {formatDate(workshop.startTime)}
+            </div>
+            <div style={iconTextStyle}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+              {formatTime(workshop.startTime)} – {formatTime(workshop.endTime)}
+            </div>
+          </>
+        ) : (
+          <div style={iconTextStyle}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            {formatDateTimeRange(workshop.startTime, workshop.endTime)}
+          </div>
+        )}
       </div>
 
       <div style={badgesRowStyle}>

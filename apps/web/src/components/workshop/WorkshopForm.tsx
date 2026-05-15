@@ -76,7 +76,7 @@ const formatToDatetimeLocal = (isoString?: string | null): string => {
     const hh = pad(date.getHours());
     const mm = pad(date.getMinutes());
     return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
-  } catch (e) {
+  } catch {
     return '';
   }
 };
@@ -143,7 +143,7 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
         status: values.status,
       };
       await onSubmit(payload);
-    } catch (err) {
+    } catch {
       // Handled in the parent page for UI notifications
     }
   };

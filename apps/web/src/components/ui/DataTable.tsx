@@ -105,7 +105,7 @@ export function DataTable<T>({
               <tr key={rowIndex} className="data-row">
                 {columns.map((col) => (
                   <td key={col.key} style={{ ...tdStyle, ...col.style }}>
-                    {col.render ? col.render(row) : (row as any)[col.key]}
+                    {col.render ? col.render(row) : ((row as Record<string, unknown>)[col.key] as React.ReactNode)}
                   </td>
                 ))}
               </tr>

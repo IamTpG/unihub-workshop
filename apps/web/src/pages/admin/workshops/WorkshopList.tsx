@@ -17,7 +17,7 @@ const formatDate = (dateStr: string) => {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(date);
-  } catch (e) {
+  } catch {
     return dateStr;
   }
 };
@@ -34,7 +34,7 @@ export const WorkshopList: React.FC = () => {
 
   useEffect(() => {
     fetchWorkshops();
-  }, []);
+  }, [fetchWorkshops]);
 
   const handlePageChange = (page: number) => {
     fetchWorkshops(page);

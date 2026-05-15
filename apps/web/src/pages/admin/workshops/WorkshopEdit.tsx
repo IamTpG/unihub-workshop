@@ -4,7 +4,7 @@ import { PageHeader } from '../../../components/ui/PageHeader';
 import { WorkshopForm } from '../../../components/workshop/WorkshopForm';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
-import { useAdminWorkshopStore } from '../../../stores/adminWorkshopStore';
+import { useAdminWorkshopStore, getErrorMessage } from '../../../stores/adminWorkshopStore';
 import type { UpdateWorkshopPayload } from '../../../stores/adminWorkshopStore';
 
 export const WorkshopEdit: React.FC = () => {
@@ -26,7 +26,7 @@ export const WorkshopEdit: React.FC = () => {
       fetchWorkshop(id).catch(() => {});
     }
     return () => clearError();
-  }, [id]);
+  }, [id, fetchWorkshop, clearError]);
 
   const handleSubmit = async (data: UpdateWorkshopPayload) => {
     if (!id) return;
@@ -34,8 +34,8 @@ export const WorkshopEdit: React.FC = () => {
     try {
       await updateWorkshop(id, data);
       navigate(`/admin/workshops/${id}`);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to update workshop. Please try again.';
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Failed to update workshop. Please try again.');
       setSubmitError(msg);
       throw err; // Stop button loading animation
     }

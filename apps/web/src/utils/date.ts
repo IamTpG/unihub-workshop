@@ -81,7 +81,7 @@ export const formatDateTimeRange = (startString: string, endString: string): str
     
     // For multi-day: include basic date fields alongside time for compactness
     const baseDateFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    return `${baseDateFmt.format(start)}, ${startTimeStr} to ${baseDateFmt.format(end)}, ${endTimeStr}`;
+    return `${baseDateFmt.format(start)}, ${startTimeStr} - ${baseDateFmt.format(end)}, ${endTimeStr}`;
   } catch {
     return `${startString} - ${endString}`;
   }

@@ -4,7 +4,7 @@ import { PageHeader } from '../../../components/ui/PageHeader';
 import { WorkshopForm } from '../../../components/workshop/WorkshopForm';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
-import { useAdminWorkshopStore } from '../../../stores/adminWorkshopStore';
+import { useAdminWorkshopStore, getErrorMessage } from '../../../stores/adminWorkshopStore';
 import type { CreateWorkshopPayload } from '../../../stores/adminWorkshopStore';
 
 export const WorkshopCreate: React.FC = () => {
@@ -17,9 +17,9 @@ export const WorkshopCreate: React.FC = () => {
     try {
       await createWorkshop(data);
       navigate('/admin/workshops');
-    } catch (err: any) {
+    } catch (err) {
       // Extract error message for inline display
-      const msg = err.response?.data?.message || 'Failed to create workshop. Please try again.';
+      const msg = getErrorMessage(err, 'Failed to create workshop. Please try again.');
       setError(msg);
       throw err; // Propagate to stop form submission loading state
     }
