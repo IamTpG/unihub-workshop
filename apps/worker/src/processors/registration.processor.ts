@@ -8,7 +8,7 @@ import {
   type NotificationJobData,
 } from "@unihub/shared";
 import { redis, notificationQueue, paymentTimeoutQueue } from "../queue.js";
-import { getPaymentProvider } from "../infra/payment/payment-provider.factory.js";
+import { paymentBreaker } from "../infra/payment-breaker.js";
 
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const workshopSlotKey = (id: string) => `workshop:${id}:slots`;
@@ -78,19 +78,18 @@ async function processRegistration(job: Job<RegistrationJobData>) {
     return;
   }
 
-  // Paid workshop — create payment intent
-  const provider = getPaymentProvider("mock");
+  // Paid workshop — create payment intent using circuit breaker
   let intentId: string | undefined;
 
   try {
-    const intent = await provider.createIntent(workshopPrice, "VND", {
+    const intent = (await paymentBreaker.fire(workshopPrice, "VND", {
       userId,
       workshopId,
       registrationId,
-    });
-    intentId = intent.intentId;
+    })) as any; // Using any as a quick fix or use CreateIntentResult if imported
+    intentId = intent?.intentId;
   } catch (err) {
-    console.error(`[REGISTRATION_PROCESSOR] Payment provider error for job ${job.id}:`, err);
+    console.error(`[REGISTRATION_PROCESSOR] Payment breaker error for job ${job.id}:`, err);
   }
 
   const expiresAt = new Date(Date.now() + PAYMENT_TIMEOUT_MS);

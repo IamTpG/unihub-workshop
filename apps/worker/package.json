@@ -17,11 +17,13 @@
     "bullmq": "^5.76.2",
     "dotenv": "^17.4.2",
     "ioredis": "^5.10.1",
-    "nodemailer": "^8.0.6"
+    "nodemailer": "^8.0.6",
+    "opossum": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@types/nodemailer": "^8.0.0",
+    "@types/opossum": "^8.1.9",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   }

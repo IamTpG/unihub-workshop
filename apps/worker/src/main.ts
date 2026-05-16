@@ -2,6 +2,7 @@ import { prisma } from "@unihub/db";
 import { mailProcessor } from "./processors/mail.processor.js";
 import { registrationProcessor, seedWorkshopSlots } from "./processors/registration.processor.js";
 import { paymentTimeoutProcessor } from "./processors/payment-timeout.processor.js";
+import { notificationProcessor } from "./processors/notification.processor.js";
 import { emailOtpQueue, registrationQueue, paymentTimeoutQueue, notificationQueue, redis } from "./queue.js";
 
 console.log("UniHub worker started");
@@ -30,6 +31,7 @@ const shutdown = async (signal: string) => {
     mailProcessor.close(),
     registrationProcessor.close(),
     paymentTimeoutProcessor.close(),
+    notificationProcessor.close(),
   ]);
 
   await Promise.all([
