@@ -26,6 +26,7 @@ enum RegStatus {
   PAID      // Đã thanh toán / Hoàn tất
   FAILED    // Thất bại
   EXPIRED   // Quá hạn 10p
+  CANCELLED
 }
 
 model User {
@@ -40,6 +41,7 @@ model User {
   otpTokens     OtpToken[]
   refreshTokens RefreshToken[]
   registrations Registration[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -85,7 +87,9 @@ model Workshop {
   availableSlots Int            @map("available_slots") // Dùng cho DB Atomic Update
   price          Decimal        @default(0) @db.Decimal(10, 2)
   status         WorkshopStatus @default(DRAFT)
-  aiSummary      String?        @map("ai_summary") @db.Text // Tóm tắt từ file PDF
+  aiSummary            String?        @map("ai_summary") @db.Text // Tóm tắt từ file PDF
+  registrationOpenAt  DateTime?      @map("registration_open_at")
+  registrationCloseAt DateTime?      @map("registration_close_at")
 
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
@@ -115,4 +119,44 @@ model Registration {
 
   @@unique([userId, workshopId])
   @@map("registrations")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String?  @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model StudentRecord {
+  id         String   @id @default(uuid()) @db.Uuid
+  studentId  String   @unique @map("student_id")
+  email      String   @unique
+  fullName   String   @map("full_name")
+  status     String   @default("ACTIVE")
+  importedAt DateTime @default(now()) @map("imported_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("student_records")
+}
+
+model ImportLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  filename  String
+  totalRows Int      @map("total_rows")
+  inserted  Int      @default(0)
+  updated   Int      @default(0)
+  skipped   Int      @default(0)
+  failed    Int      @default(0)
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("import_logs")
 }

@@ -35,16 +35,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/IamTpG/unihub.git"
+    "url": "git+https://github.com/IamTpG/unihub-workshop.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/IamTpG/unihub/issues"
+    "url": "https://github.com/IamTpG/unihub-workshop/issues"
   },
-  "homepage": "https://github.com/IamTpG/unihub#readme",
+  "homepage": "https://github.com/IamTpG/unihub-workshop#readme",
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0"

@@ -7,7 +7,9 @@
       "Bash(openspec status *)",
       "Bash(openspec instructions *)",
       "Read(//tmp/**)",
-      "Bash(curl -s http://localhost:3000/api/v1/health)"
+      "Bash(curl -s http://localhost:3000/api/v1/health)",
+      "Bash(openspec list *)",
+      "Bash(awk '{print $NF}')"
     ]
   }
 }

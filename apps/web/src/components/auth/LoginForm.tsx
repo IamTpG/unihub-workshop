@@ -1,24 +1,24 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { useAuthStore } from '../../stores/authStore';
-import { Input } from '../ui/Input';
-import { Button } from '../ui/Button';
+import React, { useState } from "react";
+import axios from "axios";
+import { useAuthStore } from "../../stores/authStore";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 
 interface LoginFormProps {
   onSuccess: (username: string, successMessage: string) => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { requestOtp } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
-      setError('Please enter a username');
+      setError("Please enter a username");
       return;
     }
 
@@ -30,9 +30,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       onSuccess(username.trim(), responseMsg);
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Unable to contact server. Is the backend running?');
+        console.log(err);
+        setError(
+          err.response?.data?.message ||
+            "Unable to contact server. Is the backend running?",
+        );
       } else {
-        setError('An unexpected error occurred.');
+        setError("An unexpected error occurred.");
       }
     } finally {
       setLoading(false);
@@ -59,7 +63,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 };
 
 const formStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '20px',
+  display: "flex",
+  flexDirection: "column",
+  gap: "20px",
 };
