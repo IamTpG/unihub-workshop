@@ -16,15 +16,6 @@ router.post(
   checkinsController.verifyCheckIn,
 );
 
-// Single check-in
-router.post(
-  "/:registrationId",
-  authenticate,
-  requireRoles([Role.STAFF, Role.ADMIN]),
-  validate({ params: schemas.checkInParamsSchema }),
-  checkinsController.checkInSingle,
-);
-
 // Batch check-in (offline sync)
 router.post(
   "/batch",
@@ -32,6 +23,15 @@ router.post(
   requireRoles([Role.STAFF, Role.ADMIN]),
   validate({ body: schemas.batchCheckInSchema }),
   checkinsController.checkInBatch,
+);
+
+// Single check-in
+router.post(
+  "/:registrationId",
+  authenticate,
+  requireRoles([Role.STAFF, Role.ADMIN]),
+  validate({ params: schemas.checkInParamsSchema }),
+  checkinsController.checkInSingle,
 );
 
 export default router;

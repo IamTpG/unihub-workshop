@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { api } from '../../lib/api';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Alert } from '../../components/ui/Alert';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { createQueueItem, enqueue } from '../../lib/offlineQueue';
 
 type ScanMode = 'camera' | 'manual';
 
@@ -13,7 +16,9 @@ type CheckInStatus =
   | 'ALREADY_CHECKED_IN'
   | 'INVALID_QR'
   | 'WRONG_WORKSHOP'
-  | 'NOT_CONFIRMED';
+  | 'NOT_CONFIRMED'
+  | 'QUEUED_OFFLINE'
+  | 'QUEUED_NETWORK';
 
 interface VerifyCheckInRequest {
   qrToken: string;
@@ -51,8 +56,23 @@ const StaffScan: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualError, setManualError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  );
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
+
+  const {
+    items: queueItems,
+    pendingCount,
+    failedCount,
+    isSyncing,
+    retryItem,
+    syncNow,
+  } = useOfflineSync();
 
   const isBusy = isLoading || result !== null;
+  const resolvedWorkshopTitle = workshopTitle || 'Selected workshop';
+  const resolvedWorkshopId = workshopId || '';
 
   const stopScanner = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -70,13 +90,49 @@ const StaffScan: React.FC = () => {
     }
   }, []);
 
+  const queueScan = useCallback(
+    (qrToken: string, reason: 'offline' | 'network') => {
+      enqueue(
+        createQueueItem({
+          qrToken,
+          workshopId: resolvedWorkshopId,
+          workshopTitle: resolvedWorkshopTitle,
+        }),
+      );
+
+      if (mountedRef.current) {
+        setResult({
+          success: true,
+          status: reason === 'offline' ? 'QUEUED_OFFLINE' : 'QUEUED_NETWORK',
+          message:
+            reason === 'offline'
+              ? 'Queued (offline) - will sync when connected'
+              : 'Network error - scan queued for sync',
+          workshopTitle: resolvedWorkshopTitle,
+        });
+      }
+
+      if (reason === 'network' && isOnline) {
+        void syncNow();
+      }
+    },
+    [isOnline, resolvedWorkshopId, resolvedWorkshopTitle, syncNow],
+  );
+
   const verifyToken = useCallback(
     async (token: string) => {
       const qrToken = token.trim();
       if (!qrToken || isBusy) return;
 
-      setIsLoading(true);
       setManualError(null);
+
+      if (!isOnline) {
+        queueScan(qrToken, 'offline');
+        setManualToken('');
+        return;
+      }
+
+      setIsLoading(true);
 
       try {
         const payload: VerifyCheckInRequest = {
@@ -87,13 +143,13 @@ const StaffScan: React.FC = () => {
         if (mountedRef.current) {
           setResult(response.data);
         }
-      } catch {
-        if (mountedRef.current) {
-          setResult({
-            success: false,
-            status: 'INVALID_QR',
-            message: 'QR code not recognized',
-          });
+      } catch (error) {
+        if (!mountedRef.current) return;
+
+        if (isNetworkError(error)) {
+          queueScan(qrToken, 'network');
+        } else {
+          setResult(getApiErrorResult(error));
         }
       } finally {
         if (mountedRef.current) {
@@ -102,7 +158,7 @@ const StaffScan: React.FC = () => {
         }
       }
     },
-    [isBusy, workshopId],
+    [isBusy, isOnline, queueScan, workshopId],
   );
 
   useEffect(() => {
@@ -112,6 +168,24 @@ const StaffScan: React.FC = () => {
       void stopScanner();
     };
   }, [stopScanner]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (pendingCount > 0) {
+        void syncNow();
+      }
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [pendingCount, syncNow]);
 
   useEffect(() => {
     if (mode !== 'camera' || isBusy) {
@@ -174,13 +248,83 @@ const StaffScan: React.FC = () => {
     <div style={pageStyle}>
       <header style={topBarStyle}>
         <button type="button" onClick={() => navigate('/manage')} style={backButtonStyle}>
-          &larr;
+          &lt;
         </button>
         <div>
           <h1 style={titleStyle}>{workshopTitle || 'Scan Ticket'}</h1>
           <p style={subtitleStyle}>Staff check-in</p>
         </div>
       </header>
+
+      {!isOnline && (
+        <div style={offlineBannerStyle}>You're offline - scans are queued locally</div>
+      )}
+
+      <section style={queueSummaryStyle}>
+        <div style={queueBadgeStyle}>
+          Queue: {pendingCount} pending | {failedCount} failed
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          fullWidth={false}
+          onClick={() => setIsQueueOpen((open) => !open)}
+        >
+          {isQueueOpen ? 'Hide Queue' : 'Show Queue'}
+        </Button>
+      </section>
+
+      {isQueueOpen && (
+        <section style={queuePanelStyle}>
+          <div style={queuePanelHeaderStyle}>
+            <h2 style={queuePanelTitleStyle}>Offline Queue</h2>
+            <Button
+              type="button"
+              size="sm"
+              fullWidth={false}
+              loading={isSyncing}
+              loadingText="Syncing..."
+              disabled={pendingCount === 0}
+              onClick={() => void syncNow()}
+            >
+              Sync Now
+            </Button>
+          </div>
+
+          {queueItems.length === 0 ? (
+            <p style={emptyQueueStyle}>No queued scans.</p>
+          ) : (
+            <div style={queueListStyle}>
+              {queueItems.map((item) => (
+                <article key={item.id} style={queueItemStyle}>
+                  <div>
+                    <h3 style={queueItemTitleStyle}>{item.workshopTitle || 'Workshop'}</h3>
+                    <p style={queueItemMetaStyle}>{formatDateTime(item.localTimestamp)}</p>
+                    {item.failureReason && (
+                      <p style={queueFailureStyle}>{item.failureReason}</p>
+                    )}
+                  </div>
+                  <div style={queueItemActionsStyle}>
+                    <span style={queueStatusStyle(item.syncStatus)}>{item.syncStatus}</span>
+                    {item.syncStatus === 'failed' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        fullWidth={false}
+                        onClick={() => retryItem(item.id)}
+                      >
+                        Retry
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div style={toggleStyle}>
         <button
@@ -243,6 +387,32 @@ const StaffScan: React.FC = () => {
   );
 };
 
+function isNetworkError(error: unknown) {
+  return isAxiosError(error) && !error.response;
+}
+
+function getApiErrorResult(error: unknown): VerifyCheckInResponse {
+  if (isAxiosError(error) && error.response?.data && typeof error.response.data === 'object') {
+    const data = error.response.data as Partial<VerifyCheckInResponse> & { message?: string };
+    if (typeof data.status === 'string' && typeof data.message === 'string') {
+      return {
+        success: Boolean(data.success),
+        status: data.status as CheckInStatus,
+        message: data.message,
+        studentName: data.studentName,
+        workshopTitle: data.workshopTitle,
+        checkedInAt: data.checkedInAt,
+      };
+    }
+  }
+
+  return {
+    success: false,
+    status: 'INVALID_QR',
+    message: 'QR code not recognized',
+  };
+}
+
 function getResultView(result: VerifyCheckInResponse) {
   const checkedInAt = result.checkedInAt
     ? new Date(result.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -251,7 +421,7 @@ function getResultView(result: VerifyCheckInResponse) {
   switch (result.status) {
     case 'CHECKED_IN':
       return {
-        icon: '✓',
+        icon: 'OK',
         color: '#16a34a',
         title: `Welcome, ${result.studentName || 'attendee'}!`,
         message: 'Check-in complete.',
@@ -265,9 +435,18 @@ function getResultView(result: VerifyCheckInResponse) {
         message: checkedInAt ? `Already checked in at ${checkedInAt}` : result.message,
         workshopTitle: result.workshopTitle,
       };
+    case 'QUEUED_OFFLINE':
+    case 'QUEUED_NETWORK':
+      return {
+        icon: '...',
+        color: '#2563eb',
+        title: 'Queued',
+        message: result.message,
+        workshopTitle: result.workshopTitle,
+      };
     case 'WRONG_WORKSHOP':
       return {
-        icon: '×',
+        icon: 'X',
         color: '#dc2626',
         title: 'Wrong workshop',
         message: 'Ticket is for a different workshop',
@@ -275,7 +454,7 @@ function getResultView(result: VerifyCheckInResponse) {
       };
     case 'NOT_CONFIRMED':
       return {
-        icon: '×',
+        icon: 'X',
         color: '#dc2626',
         title: 'Not confirmed',
         message: result.message,
@@ -284,13 +463,24 @@ function getResultView(result: VerifyCheckInResponse) {
     case 'INVALID_QR':
     default:
       return {
-        icon: '×',
+        icon: 'X',
         color: '#dc2626',
         title: 'Invalid QR',
         message: 'QR code not recognized',
         workshopTitle: result.workshopTitle,
       };
   }
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 const pageStyle: React.CSSProperties = {
@@ -329,6 +519,125 @@ const subtitleStyle: React.CSSProperties = {
   margin: '4px 0 0',
   color: 'var(--text)',
   fontSize: '14px',
+};
+
+const offlineBannerStyle: React.CSSProperties = {
+  padding: '12px',
+  marginBottom: '12px',
+  borderRadius: '8px',
+  backgroundColor: '#fef3c7',
+  border: '1px solid #f59e0b',
+  color: '#92400e',
+  fontWeight: 700,
+  textAlign: 'center',
+};
+
+const queueSummaryStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  marginBottom: '12px',
+};
+
+const queueBadgeStyle: React.CSSProperties = {
+  flex: 1,
+  minHeight: '40px',
+  display: 'flex',
+  alignItems: 'center',
+  padding: '0 12px',
+  borderRadius: '8px',
+  border: '1px solid var(--border)',
+  color: 'var(--text-h)',
+  fontWeight: 700,
+  fontSize: '14px',
+};
+
+const queuePanelStyle: React.CSSProperties = {
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+  padding: '12px',
+  marginBottom: '16px',
+  backgroundColor: 'var(--bg)',
+};
+
+const queuePanelHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  marginBottom: '10px',
+};
+
+const queuePanelTitleStyle: React.CSSProperties = {
+  margin: 0,
+  color: 'var(--text-h)',
+  fontSize: '16px',
+};
+
+const emptyQueueStyle: React.CSSProperties = {
+  margin: '8px 0',
+  color: 'var(--text)',
+};
+
+const queueListStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+};
+
+const queueItemStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  padding: '10px',
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+};
+
+const queueItemTitleStyle: React.CSSProperties = {
+  margin: 0,
+  color: 'var(--text-h)',
+  fontSize: '14px',
+  lineHeight: 1.3,
+};
+
+const queueItemMetaStyle: React.CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--text)',
+  fontSize: '12px',
+};
+
+const queueFailureStyle: React.CSSProperties = {
+  margin: '6px 0 0',
+  color: '#dc2626',
+  fontSize: '12px',
+  fontWeight: 700,
+};
+
+const queueItemActionsStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-end',
+  gap: '8px',
+};
+
+const queueStatusStyle = (status: CheckInStatus | 'pending' | 'synced' | 'failed'): React.CSSProperties => {
+  const colors = {
+    pending: { backgroundColor: '#eff6ff', color: '#2563eb' },
+    synced: { backgroundColor: '#f0fdf4', color: '#16a34a' },
+    failed: { backgroundColor: '#fef2f2', color: '#dc2626' },
+  };
+
+  return {
+    ...(status in colors ? colors[status as keyof typeof colors] : colors.pending),
+    padding: '4px 8px',
+    borderRadius: '999px',
+    fontSize: '12px',
+    fontWeight: 800,
+    textTransform: 'capitalize',
+  };
 };
 
 const toggleStyle: React.CSSProperties = {
@@ -415,7 +724,7 @@ const resultCardStyle: React.CSSProperties = {
 };
 
 const resultIconStyle: React.CSSProperties = {
-  fontSize: '64px',
+  fontSize: '44px',
   fontWeight: 900,
   lineHeight: 1,
   marginBottom: '14px',
