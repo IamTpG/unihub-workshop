@@ -63,7 +63,10 @@ async function processRegistration(job: Job<RegistrationJobData>) {
   if (workshopPrice === 0) {
     await prisma.registration.update({
       where: { id: registrationId },
-      data: { status: RegStatus.PAID },
+      data: { 
+        status: RegStatus.PAID,
+        qrStub: registrationId,
+      },
     });
 
     const notifData: NotificationJobData = {

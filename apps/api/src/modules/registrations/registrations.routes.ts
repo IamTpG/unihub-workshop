@@ -17,4 +17,18 @@ router.post(
   registrationsController.register,
 );
 
+router.get(
+  "/registrations",
+  authenticate,
+  requireRoles([Role.STUDENT]),
+  registrationsController.listRegistrations,
+);
+
+router.get(
+  "/registrations/:id",
+  authenticate,
+  requireRoles([Role.STUDENT]),
+  registrationsController.getRegistration,
+);
+
 export default router;

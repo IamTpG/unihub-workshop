@@ -13,7 +13,7 @@ router.post(
   "/:registrationId",
   authenticate,
   requireRoles([Role.STAFF]),
-  validate(schemas.checkInParamsSchema, "params"),
+  validate({ params: schemas.checkInParamsSchema }),
   checkinsController.checkInSingle,
 );
 
@@ -22,7 +22,7 @@ router.post(
   "/batch",
   authenticate,
   requireRoles([Role.STAFF]),
-  validate(schemas.batchCheckInSchema),
+  validate({ body: schemas.batchCheckInSchema }),
   checkinsController.checkInBatch,
 );
 

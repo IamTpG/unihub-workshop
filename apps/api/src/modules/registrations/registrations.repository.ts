@@ -38,6 +38,42 @@ export class RegistrationsRepository {
     });
   }
 
+  findByUser(userId: string, statuses?: RegStatus[]) {
+    return prisma.registration.findMany({
+      where: {
+        userId,
+        ...(statuses && statuses.length > 0 ? { status: { in: statuses } } : {}),
+      },
+      include: {
+        workshop: {
+          select: {
+            id: true,
+            title: true,
+            startTime: true,
+            price: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  findOneByUser(id: string, userId: string) {
+    return prisma.registration.findFirst({
+      where: { id, userId },
+      include: {
+        workshop: {
+          select: {
+            id: true,
+            title: true,
+            startTime: true,
+            price: true,
+          },
+        },
+      },
+    });
+  }
+
   releaseSlot(workshopId: string) {
     return prisma.workshop.update({
       where: { id: workshopId },

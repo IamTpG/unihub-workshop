@@ -16,7 +16,9 @@ export class CheckinsRepository {
     return result.count > 0;
   }
 
-  async checkInBatch(items: { registrationId: string; checkedInAt?: string }[]) {
+  async checkInBatch(
+    items: { registrationId: string; checkedInAt?: string | undefined }[],
+  ) {
     return prisma.$transaction(async (tx) => {
       const results = await Promise.all(
         items.map(async (item) => {

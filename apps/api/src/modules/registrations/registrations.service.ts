@@ -1,7 +1,8 @@
-import { prisma, WorkshopStatus } from "@unihub/db";
+import { prisma, WorkshopStatus, RegStatus } from "@unihub/db";
 import { redis } from "../../infra/redis/redis.js";
 import { registrationQueue } from "../../infra/queue/registration.queue.js";
 import { BadRequestError, NotFoundError } from "../../infra/errors/AppError.js";
+import { registrationsRepository } from "./registrations.repository.js";
 
 const workshopSlotKey = (workshopId: string) => `workshop:${workshopId}:slots`;
 
@@ -39,6 +40,14 @@ export class RegistrationsService {
     });
 
     return { jobId: job.id };
+  }
+
+  async getUserRegistrations(userId: string, statuses?: RegStatus[]) {
+    return registrationsRepository.findByUser(userId, statuses);
+  }
+
+  async getRegistrationDetails(id: string, userId: string) {
+    return registrationsRepository.findOneByUser(id, userId);
   }
 
   async seedSlots(workshopId: string, availableSlots: number) {

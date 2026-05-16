@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { RegStatus } from "@unihub/db";
 import { registrationsService } from "./registrations.service.js";
 
 export class RegistrationsController {
@@ -18,6 +19,58 @@ export class RegistrationsController {
         success: true,
         message: "Registration accepted",
         data: result,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async listRegistrations(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user!.id;
+      const { status } = req.query;
+
+      let statuses: RegStatus[] | undefined;
+      if (typeof status === "string") {
+        statuses = status
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) =>
+            Object.values(RegStatus).includes(s as RegStatus),
+          ) as RegStatus[];
+      }
+
+      const registrations = await registrationsService.getUserRegistrations(
+        userId,
+        statuses,
+      );
+
+      return res.json({
+        success: true,
+        data: registrations,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async getRegistration(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = String(req.params.id);
+      const userId = req.user!.id;
+
+      const registration = await registrationsService.getRegistrationDetails(id, userId);
+
+      if (!registration) {
+        return res.status(404).json({
+          success: false,
+          message: "Registration not found",
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: registration,
       });
     } catch (error) {
       return next(error);

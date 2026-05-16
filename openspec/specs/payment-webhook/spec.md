@@ -1,5 +1,6 @@
-## ADDED Requirements
-
+## Purpose
+Define the requirements for processing payment callbacks from external providers to finalize workshop registrations.
+## Requirements
 ### Requirement: Webhook endpoint accepts payment provider callbacks
 The system SHALL expose `POST /payments/webhook/:provider` to receive payment lifecycle events. The endpoint SHALL verify the webhook signature using the `PaymentProvider.verifyWebhook` method before processing.
 
@@ -20,7 +21,10 @@ On receiving a `PAYMENT_SUCCEEDED` event, the system SHALL update the Registrati
 
 #### Scenario: Payment succeeded event processed
 - **WHEN** the webhook delivers a `PAYMENT_SUCCEEDED` event for a known `paymentIntentId`
-- **THEN** the Registration status is set to `PAID`, a QR stub string is stored, a `notification-queue` job is enqueued, and the endpoint returns `200 OK`
+- **THEN** the Registration status is set to `PAID`
+- **AND** the `qrStub` field is set strictly to the `registrationId`
+- **AND** a `notification-queue` job is enqueued
+- **AND** the endpoint returns `200 OK`
 
 #### Scenario: Payment succeeded for already-PAID registration (idempotent)
 - **WHEN** the webhook delivers a `PAYMENT_SUCCEEDED` event and the Registration is already `PAID`
@@ -55,3 +59,4 @@ The webhook endpoint SHALL participate in the idempotency middleware using the p
 #### Scenario: Duplicate webhook delivery
 - **WHEN** the same webhook event is delivered a second time (same event ID)
 - **THEN** the idempotency middleware returns the cached `200 OK` response without re-processing
+

@@ -1,10 +1,11 @@
-## ADDED Requirements
-
+## Purpose
+Provide endpoints for staff to check in attendees and for the system to process batch check-in syncs.
+## Requirements
 ### Requirement: Single check-in endpoint
 The system SHALL provide functionality for staff to mark a single attendee as checked in.
 
 #### Scenario: Successful check-in
-- **WHEN** a staff user sends a check-in request with a valid registration ID
+- **WHEN** a staff user sends a check-in request with a `registrationId` (scanned from the student's QR code)
 - **AND** the registration status is `PAID` and `checkedInAt` is null
 - **THEN** the system updates `checkedInAt` to the provided timestamp (or server time if not provided)
 - **AND** returns the updated registration data
@@ -33,3 +34,9 @@ The system SHALL provide a batch endpoint for staff to sync multiple offline che
 
 ### Requirement: Check-in requires STAFF or ADMIN role
 The system SHALL restrict check-in functionality to users with `STAFF` or `ADMIN` role only.
+
+#### Scenario: Access denied for students
+- **WHEN** a user with the `STUDENT` role attempts to access the check-in endpoint
+- **THEN** the system returns a `403 Forbidden` error
+- **AND** the check-in is not processed
+
