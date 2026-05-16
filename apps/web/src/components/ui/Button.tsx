@@ -2,6 +2,8 @@ import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  fullWidth?: boolean;
   loading?: boolean;
   loadingText?: string;
 }
@@ -9,21 +11,28 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
+  size = 'md',
+  fullWidth = true,
   loading,
   loadingText = 'Processing...',
   style,
   disabled,
   ...props
 }) => {
+  const sizeStyles: Record<string, React.CSSProperties> = {
+    sm: { padding: '8px 12px', fontSize: '13px' },
+    md: { padding: '14px', fontSize: '16px' },
+    lg: { padding: '18px', fontSize: '18px' },
+  };
+
   const baseStyle: React.CSSProperties = {
-    padding: '14px',
+    ...sizeStyles[size],
     borderRadius: '8px',
-    fontSize: '16px',
     fontWeight: 600,
     cursor: disabled || loading ? 'not-allowed' : 'pointer',
     transition: 'all 0.2s ease',
     border: 'none',
-    width: '100%',
+    width: fullWidth ? '100%' : 'auto',
     opacity: disabled || loading ? 0.7 : 1,
     textAlign: 'center',
     boxSizing: 'border-box',

@@ -106,6 +106,42 @@ async function main() {
       price: 0,
       status: WorkshopStatus.DRAFT,
     },
+    {
+      title: "Nhập môn Trí tuệ Nhân tạo & LLMs",
+      description: "Khám phá thế giới AI, từ cơ bản đến cách sử dụng các mô hình ngôn ngữ lớn như GPT.",
+      speakerName: "AI Specialist",
+      location: "Phòng Lab 1",
+      startTime: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
+      endTime: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000),
+      capacity: 40,
+      availableSlots: 40,
+      price: 0,
+      status: WorkshopStatus.PUBLISHED,
+    },
+    {
+      title: "Thiết kế UI/UX cho ứng dụng Mobile",
+      description: "Học cách tạo ra trải nghiệm người dùng tuyệt vời và giao diện bắt mắt cho điện thoại.",
+      speakerName: "Senior Designer",
+      location: "Phòng D.305",
+      startTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000),
+      endTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
+      capacity: 50,
+      availableSlots: 50,
+      price: 25000,
+      status: WorkshopStatus.PUBLISHED,
+    },
+    {
+      title: "Kỹ năng Thuyết trình & Giao tiếp",
+      description: "Làm sao để tự tin nói trước đám đông và truyền tải thông điệp hiệu quả.",
+      speakerName: "Coach Minh Trần",
+      location: "Hội trường C",
+      startTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      endTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000),
+      capacity: 120,
+      availableSlots: 120,
+      price: 0,
+      status: WorkshopStatus.PUBLISHED,
+    },
   ];
 
   for (const w of workshops) {
@@ -128,9 +164,11 @@ async function main() {
   });
 
   if (student1 && ws1) {
-    await prisma.registration.upsert({
-      where: { idempotencyKey: "seed-key-1" },
-      update: {},
+    const reg = await prisma.registration.upsert({
+      where: { userId_workshopId: { userId: student1.id, workshopId: ws1.id } },
+      update: {
+        status: RegStatus.PAID,
+      },
       create: {
         userId: student1.id,
         workshopId: ws1.id,
@@ -138,6 +176,12 @@ async function main() {
         idempotencyKey: "seed-key-1",
         checkedInAt: null,
       },
+    });
+
+    // Cập nhật qrStub bằng chính ID của registration
+    await prisma.registration.update({
+      where: { id: reg.id },
+      data: { qrStub: reg.id }
     });
 
     // Sau khi seed 1 registration, cập nhật lại availableSlots

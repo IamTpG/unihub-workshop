@@ -13,7 +13,7 @@ The system SHALL intercept navigation to protected routes and redirect unauthent
 - **AND** the system retains the intended destination (optional, for post-login redirect)
 
 ### Requirement: Role-Based Access Control (RBAC)
-The system SHALL restrict access to specific route branches based on the user's role stored in the AuthStore.
+The system SHALL restrict access to specific route branches based on the user's role stored in the AuthStore. Student routes now include the My Tickets feature routes.
 
 #### Scenario: Unauthorized role access attempt
 - **GIVEN** a logged-in user with the `STUDENT` role
@@ -24,6 +24,17 @@ The system SHALL restrict access to specific route branches based on the user's 
 - **GIVEN** a user is on the Login page
 - **WHEN** they successfully authenticate and the API returns role `ADMIN`
 - **THEN** they are automatically navigated to `/admin/dashboard`
+
+#### Scenario: Student accesses My Tickets routes
+- **GIVEN** a logged-in user with the `STUDENT` role
+- **WHEN** they navigate to `/my-tickets`, `/my-tickets/:id/qr`, `/my-tickets/:id/pay`, `/my-tickets/:id/mock-pay`, or `/my-tickets/:id/result`
+- **THEN** the page renders inside the `MobileShell` layout
+- **AND** access is granted
+
+#### Scenario: Non-student accesses My Tickets
+- **GIVEN** a logged-in user with the `STAFF` role
+- **WHEN** they attempt to access `/my-tickets`
+- **THEN** they are redirected to the Unauthorized page
 
 ### Requirement: Role-Specific Layout Shells
 The system SHALL wrap protected pages in layout shells optimized for the target role's primary device context.

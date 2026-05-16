@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { RegStatus } from '@unihub/shared';
 import { useWorkshopStore } from '../../stores/workshopStore';
+import { useRegistrationStore } from '../../stores/registrationStore';
 import { Button } from '../../components/ui/Button';
 
 import { formatDate, formatTime, formatDateTimeRange } from '../../utils/date';
@@ -13,17 +15,49 @@ import {
 const WorkshopDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { workshops, fetchWorkshops, isLoading } = useWorkshopStore();
+  const { workshops, fetchWorkshops, isLoading: isWorkshopsLoading } = useWorkshopStore();
+  const { 
+    registrations, 
+    registerForWorkshop, 
+    fetchRegistrations,
+    isLoading: isRegistering 
+  } = useRegistrationStore();
 
   const workshop = workshops.find((w) => w.id === id);
 
   useEffect(() => {
-    if (!workshop && !isLoading) {
+    if (!workshop && !isWorkshopsLoading) {
       fetchWorkshops();
     }
-  }, [workshop, isLoading, fetchWorkshops]);
+  }, [workshop, isWorkshopsLoading, fetchWorkshops]);
 
-  if (isLoading && !workshop) {
+  useEffect(() => {
+    if (registrations.length === 0) {
+      fetchRegistrations();
+    }
+  }, [fetchRegistrations, registrations.length]);
+
+  const existingRegistration = registrations.find(
+    (r) => r.workshop.id === id && 
+    [RegStatus.PAID, RegStatus.HOLDING, RegStatus.PENDING].includes(r.status)
+  );
+  
+  const isRegistered = !!existingRegistration;
+
+  const handleRegister = async () => {
+    if (!workshop || isRegistering || workshop.availableSlots === 0 || isRegistered) return;
+    
+    try {
+      await registerForWorkshop(workshop.id);
+      // After successful (accepted) registration, navigate to registrations list
+      navigate('/my-registrations');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      alert(message);
+    }
+  };
+
+  if (isWorkshopsLoading && !workshop) {
     return (
       <div style={statusScreenStyle}>
         <div style={loadingSpinnerStyle} />
@@ -106,8 +140,14 @@ const WorkshopDetail: React.FC = () => {
       </div>
 
       <div style={stickyFooterStyle}>
-        <button style={registerButtonStyle(isFull)}>
-          {isFull ? 'Sold Out' : `Register — ${priceDisplay}`}
+        <button 
+          style={registerButtonStyle(isFull || isRegistering || isRegistered)} 
+          onClick={handleRegister}
+          disabled={isFull || isRegistering || isRegistered}
+        >
+          {isRegistering ? 'Registering...' : 
+           isRegistered ? 'Already Registered' :
+           isFull ? 'Sold Out' : `Register — ${priceDisplay}`}
         </button>
       </div>
     </div>

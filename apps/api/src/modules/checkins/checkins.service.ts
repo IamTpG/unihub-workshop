@@ -25,7 +25,9 @@ export class CheckinsService {
     return checkinsRepository.findRegistrationById(registrationId);
   }
 
-  async checkInBatch(items: { registrationId: string; checkedInAt?: string }[]) {
+  async checkInBatch(
+    items: { registrationId: string; checkedInAt?: string | undefined }[],
+  ) {
     const ids = items.map((i) => i.registrationId);
 
     const registrations = await prisma.registration.findMany({
@@ -35,7 +37,7 @@ export class CheckinsService {
 
     const regMap = new Map(registrations.map((r) => [r.id, r]));
 
-    const validItems: { registrationId: string; checkedInAt?: string }[] = [];
+    const validItems: { registrationId: string; checkedInAt?: string | undefined }[] = [];
     let skippedCount = 0;
     const syncedIds: string[] = [];
     const failedIds: string[] = [];

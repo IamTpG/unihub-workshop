@@ -54,9 +54,8 @@ export class PaymentWebhookController {
       }
 
       if (event.eventType === "PAYMENT_SUCCEEDED") {
-        const qrStub = `QR:${registration.id}:${Date.now()}`;
         await registrationsRepository.updateStatus(registration.id, RegStatus.PAID, {
-          qrStub,
+          qrStub: registration.id,
         });
 
         await notificationQueue.add("notify", {

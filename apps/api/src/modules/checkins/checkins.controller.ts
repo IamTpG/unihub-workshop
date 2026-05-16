@@ -5,7 +5,7 @@ import type { BatchCheckInInput } from "./checkins.schema.js";
 export class CheckinsController {
   async checkInSingle(req: Request, res: Response, next: NextFunction) {
     try {
-      const { registrationId } = req.params;
+      const registrationId = String(req.params.registrationId);
       const result = await checkinsService.checkInSingle(registrationId);
       res.ok("Check-in successful", result);
     } catch (error) {

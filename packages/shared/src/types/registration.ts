@@ -23,3 +23,17 @@ export interface NotificationJobData {
   registrationId: string;
   type: "REGISTRATION_PAID" | "REGISTRATION_FAILED" | "REGISTRATION_EXPIRED" | "PAYMENT_RETRY";
 }
+
+export interface RegistrationResponse {
+  id: string;
+  status: RegStatus;
+  paymentRef: string | null;
+  qrStub: string | null;
+  createdAt: string;
+  workshop: {
+    id: string;
+    title: string;
+    startTime: string;
+    price: number | string;
+  };
+}

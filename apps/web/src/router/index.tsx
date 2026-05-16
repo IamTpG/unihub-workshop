@@ -18,6 +18,12 @@ import { WorkshopCreate as AdminWorkshopCreate } from '../pages/admin/workshops/
 import { WorkshopDetail as AdminWorkshopDetail } from '../pages/admin/workshops/WorkshopDetail';
 import { WorkshopEdit as AdminWorkshopEdit } from '../pages/admin/workshops/WorkshopEdit';
 
+import MyRegistrations from '../pages/student/MyRegistrations';
+import TicketQR from '../pages/student/TicketQR';
+import PaymentDetails from '../pages/student/PaymentDetails';
+import MockPaymentGateway from '../pages/student/MockPaymentGateway';
+import PaymentResult from '../pages/student/PaymentResult';
+
 
 
 export const router = createBrowserRouter([
@@ -89,6 +95,10 @@ export const router = createBrowserRouter([
   },
   {
     path: '/my-tickets',
+    element: <Navigate to="/my-registrations" replace />,
+  },
+  {
+    path: '/my-registrations',
     element: (
       <ProtectedRoute allowedRoles={['STUDENT']}>
         <MobileShell />
@@ -97,7 +107,23 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <div style={{ textAlign: 'left' }}><h1>My Tickets</h1><p style={{color:'var(--text)'}}>Your active registrations appear here.</p></div>,
+        element: <MyRegistrations />,
+      },
+      {
+        path: ':id/qr',
+        element: <TicketQR />,
+      },
+      {
+        path: ':id/pay',
+        element: <PaymentDetails />,
+      },
+      {
+        path: ':id/mock-pay',
+        element: <MockPaymentGateway />,
+      },
+      {
+        path: ':id/result',
+        element: <PaymentResult />,
       },
     ],
   },
