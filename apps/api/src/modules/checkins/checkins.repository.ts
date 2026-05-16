@@ -1,6 +1,27 @@
 import { prisma } from "@unihub/db";
 
 export class CheckinsRepository {
+  async findRegistrationByQrStub(qrStub: string) {
+    return prisma.registration.findFirst({
+      where: { qrStub },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            email: true,
+            username: true,
+          },
+        },
+        workshop: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+  }
+
   async checkInSingle(registrationId: string, checkedInAt?: Date) {
     const result = await prisma.registration.updateMany({
       where: {

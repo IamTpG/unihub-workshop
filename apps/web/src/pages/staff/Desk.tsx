@@ -69,7 +69,11 @@ const StaffDesk: React.FC = () => {
                   <WorkshopCard 
                     key={ws.id} 
                     workshop={ws} 
-                    onClick={() => navigate('/manage/scan')} 
+                    onClick={() =>
+                      navigate('/manage/scan', {
+                        state: { workshopId: ws.id, workshopTitle: ws.title },
+                      })
+                    }
                   />
                 ))}
               </div>

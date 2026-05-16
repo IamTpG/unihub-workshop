@@ -9,6 +9,7 @@ import AdminDashboard from '../pages/admin/Dashboard';
 import StudentHome from '../pages/student/Home';
 import WorkshopDetail from '../pages/student/WorkshopDetail';
 import StaffDesk from '../pages/staff/Desk';
+import StaffScan from '../pages/staff/Scan';
 import Unauthorized from '../pages/public/Unauthorized';
 import Login from '../pages/public/Login';
 
@@ -142,7 +143,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'scan',
-        element: <div style={{ textAlign: 'left' }}><h1>Scan QR Code</h1><p style={{color:'var(--text)'}}>Scan attendee ticket to check-in.</p></div>,
+        element: <StaffScan />,
       },
     ],
   },

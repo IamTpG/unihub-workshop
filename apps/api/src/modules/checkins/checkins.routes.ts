@@ -8,11 +8,19 @@ import * as schemas from "./checkins.schema.js";
 
 const router = Router();
 
+router.post(
+  "/verify",
+  authenticate,
+  requireRoles([Role.STAFF, Role.ADMIN]),
+  validate({ body: schemas.verifyCheckInSchema }),
+  checkinsController.verifyCheckIn,
+);
+
 // Single check-in
 router.post(
   "/:registrationId",
   authenticate,
-  requireRoles([Role.STAFF]),
+  requireRoles([Role.STAFF, Role.ADMIN]),
   validate({ params: schemas.checkInParamsSchema }),
   checkinsController.checkInSingle,
 );
@@ -21,7 +29,7 @@ router.post(
 router.post(
   "/batch",
   authenticate,
-  requireRoles([Role.STAFF]),
+  requireRoles([Role.STAFF, Role.ADMIN]),
   validate({ body: schemas.batchCheckInSchema }),
   checkinsController.checkInBatch,
 );
