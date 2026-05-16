@@ -96,6 +96,10 @@ export class AdminWorkshopsService {
     if (input.capacity !== undefined) data.capacity = input.capacity;
     if (input.price !== undefined) data.price = input.price;
     if (input.status !== undefined) data.status = input.status;
+    if (input.registrationOpenAt !== undefined)
+      data.registrationOpenAt = input.registrationOpenAt;
+    if (input.registrationCloseAt !== undefined)
+      data.registrationCloseAt = input.registrationCloseAt;
   }
 }
 

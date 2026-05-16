@@ -45,7 +45,7 @@ const WorkshopDetail: React.FC = () => {
   const isRegistered = !!existingRegistration;
 
   const handleRegister = async () => {
-    if (!workshop || isRegistering || workshop.availableSlots === 0 || isRegistered) return;
+    if (!workshop || isRegistering || workshop.availableSlots === 0 || isRegistered || !isRegistrationOpen) return;
     
     try {
       await registerForWorkshop(workshop.id);
@@ -80,6 +80,36 @@ const WorkshopDetail: React.FC = () => {
   const isPaid = Number(workshop.price) > 0;
   const priceDisplay = isPaid ? `$${workshop.price}` : 'Free';
   const seatsRemainingText = `${workshop.capacity - workshop.availableSlots}/${workshop.capacity} seats`;
+
+  const now = Date.now();
+  const windowOpen = workshop.registrationOpenAt ? new Date(workshop.registrationOpenAt).getTime() : null;
+  const windowClose = workshop.registrationCloseAt ? new Date(workshop.registrationCloseAt).getTime() : null;
+  const isRegistrationOpen =
+    (windowOpen === null || now >= windowOpen) &&
+    (windowClose === null || now <= windowClose);
+
+  let registerBtnText: string;
+  let registerBtnDisabled: boolean;
+  if (!isRegistrationOpen) {
+    if (windowOpen !== null && now < windowOpen) {
+      registerBtnText = `Opens ${new Date(windowOpen).toLocaleString()}`;
+    } else {
+      registerBtnText = 'Registration Closed';
+    }
+    registerBtnDisabled = true;
+  } else if (isRegistering) {
+    registerBtnText = 'Registering...';
+    registerBtnDisabled = true;
+  } else if (isRegistered) {
+    registerBtnText = 'Already Registered';
+    registerBtnDisabled = true;
+  } else if (isFull) {
+    registerBtnText = 'Sold Out';
+    registerBtnDisabled = true;
+  } else {
+    registerBtnText = `Register — ${priceDisplay}`;
+    registerBtnDisabled = false;
+  }
 
   const isSameDay = new Date(workshop.startTime).toDateString() === new Date(workshop.endTime).toDateString();
 
@@ -140,14 +170,12 @@ const WorkshopDetail: React.FC = () => {
       </div>
 
       <div style={stickyFooterStyle}>
-        <button 
-          style={registerButtonStyle(isFull || isRegistering || isRegistered)} 
+        <button
+          style={registerButtonStyle(registerBtnDisabled)}
           onClick={handleRegister}
-          disabled={isFull || isRegistering || isRegistered}
+          disabled={registerBtnDisabled}
         >
-          {isRegistering ? 'Registering...' : 
-           isRegistered ? 'Already Registered' :
-           isFull ? 'Sold Out' : `Register — ${priceDisplay}`}
+          {registerBtnText}
         </button>
       </div>
     </div>

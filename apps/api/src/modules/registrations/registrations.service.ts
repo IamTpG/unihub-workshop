@@ -19,7 +19,13 @@ export class RegistrationsService {
   ) {
     const workshop = await prisma.workshop.findUnique({
       where: { id: workshopId },
-      select: { id: true, status: true, availableSlots: true },
+      select: {
+        id: true,
+        status: true,
+        availableSlots: true,
+        registrationOpenAt: true,
+        registrationCloseAt: true,
+      },
     });
 
     if (!workshop) {
@@ -28,6 +34,14 @@ export class RegistrationsService {
 
     if (workshop.status !== WorkshopStatus.PUBLISHED) {
       throw new BadRequestError("Workshop is not open for registration");
+    }
+
+    const now = new Date();
+    if (workshop.registrationOpenAt && now < workshop.registrationOpenAt) {
+      throw new BadRequestError("Registration is not open yet");
+    }
+    if (workshop.registrationCloseAt && now > workshop.registrationCloseAt) {
+      throw new BadRequestError("Registration is closed");
     }
 
     // STUDENT users must have an ACTIVE StudentRecord before taking a slot.

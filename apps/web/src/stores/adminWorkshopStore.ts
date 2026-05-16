@@ -21,6 +21,8 @@ export interface AdminWorkshop {
   status: WorkshopStatus;
   createdAt: string;
   updatedAt: string;
+  registrationOpenAt?: string | null;
+  registrationCloseAt?: string | null;
 }
 
 export interface PaginationMetadata {
@@ -48,6 +50,8 @@ export interface CreateWorkshopPayload {
   capacity: number;
   price?: number;
   status?: WorkshopStatus;
+  registrationOpenAt?: string | null;
+  registrationCloseAt?: string | null;
 }
 
 export type UpdateWorkshopPayload = Partial<CreateWorkshopPayload>;

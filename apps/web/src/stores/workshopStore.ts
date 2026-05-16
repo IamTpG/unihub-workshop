@@ -14,6 +14,8 @@ export interface ApiWorkshop {
   price: number | string;
   aiSummary: string | null;
   hasPdf: boolean;
+  registrationOpenAt: string | null;
+  registrationCloseAt: string | null;
 }
 
 interface WorkshopState {

@@ -39,6 +39,8 @@ const getWorkshopSchema = (isEdit: boolean) => z
         message: 'Must be a valid URL starting with http:// or https://',
       }),
     status: z.enum(['DRAFT', 'PUBLISHED', 'CANCELLED']),
+    registrationOpenAt: z.string().optional().or(z.literal('')),
+    registrationCloseAt: z.string().optional().or(z.literal('')),
   })
   .refine((data) => {
     if (isEdit) return true; // Don't force old workshops to have future start dates on modification
@@ -54,6 +56,13 @@ const getWorkshopSchema = (isEdit: boolean) => z
   }, {
     message: 'End time must be after start time',
     path: ['endTime'],
+  })
+  .refine((data) => {
+    if (!data.registrationOpenAt || !data.registrationCloseAt) return true;
+    return new Date(data.registrationOpenAt) < new Date(data.registrationCloseAt);
+  }, {
+    message: 'Registration open time must be before close time',
+    path: ['registrationOpenAt'],
   });
 
 type WorkshopFormValues = z.infer<ReturnType<typeof getWorkshopSchema>>;
@@ -105,6 +114,8 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
       roomLayoutUrl: '',
       pdfUrl: '',
       status: 'DRAFT',
+      registrationOpenAt: '',
+      registrationCloseAt: '',
     },
   });
 
@@ -123,6 +134,8 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
         roomLayoutUrl: initialData.roomLayoutUrl || '',
         pdfUrl: initialData.pdfUrl || '',
         status: initialData.status,
+        registrationOpenAt: formatToDatetimeLocal(initialData.registrationOpenAt),
+        registrationCloseAt: formatToDatetimeLocal(initialData.registrationCloseAt),
       });
     }
   }, [initialData, reset]);
@@ -141,6 +154,12 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
         roomLayoutUrl: values.roomLayoutUrl?.trim() || undefined,
         pdfUrl: values.pdfUrl?.trim() || undefined,
         status: values.status,
+        registrationOpenAt: values.registrationOpenAt
+          ? new Date(values.registrationOpenAt).toISOString()
+          : undefined,
+        registrationCloseAt: values.registrationCloseAt
+          ? new Date(values.registrationCloseAt).toISOString()
+          : undefined,
       };
       await onSubmit(payload);
     } catch {
@@ -163,6 +182,28 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
 
   const fullWidthStyle: React.CSSProperties = {
     gridColumn: '1 / -1',
+  };
+
+  const sectionHeaderStyle: React.CSSProperties = {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: 'var(--text-h)',
+    marginBottom: '4px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const sectionNoteStyle: React.CSSProperties = {
+    fontSize: '13px',
+    color: 'var(--text)',
+    marginBottom: '16px',
+    marginTop: 0,
+  };
+
+  const windowGridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '24px',
   };
 
   return (
@@ -253,9 +294,28 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
             {...register('status')}
           />
         </div>
+
+        <div style={fullWidthStyle}>
+          <div style={sectionHeaderStyle}>Registration Window</div>
+          <p style={sectionNoteStyle}>Leave blank to allow registration at any time</p>
+          <div style={windowGridStyle}>
+            <Input
+              label="Registration Opens"
+              type="datetime-local"
+              error={errors.registrationOpenAt?.message}
+              {...register('registrationOpenAt')}
+            />
+            <Input
+              label="Registration Closes"
+              type="datetime-local"
+              error={errors.registrationCloseAt?.message}
+              {...register('registrationCloseAt')}
+            />
+          </div>
+        </div>
       </div>
 
-      <Button 
+      <Button
         type="submit" 
         loading={isSubmitting} 
         style={{ width: 'auto', minWidth: '200px', padding: '12px 32px' }}

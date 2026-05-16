@@ -12,6 +12,8 @@ const workshopListSelect = {
   price: true,
   aiSummary: true,
   pdfUrl: true,
+  registrationOpenAt: true,
+  registrationCloseAt: true,
 } as const;
 
 const workshopDetailSelect = {
@@ -27,6 +29,8 @@ const workshopDetailSelect = {
   roomLayoutUrl: true,
   aiSummary: true,
   pdfUrl: true,
+  registrationOpenAt: true,
+  registrationCloseAt: true,
 } as const;
 
 export interface PaginationInput {

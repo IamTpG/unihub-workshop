@@ -24,6 +24,8 @@ const workshopRawShape = z.object({
   capacity: z.coerce.number().int().positive(),
   price: z.coerce.number().nonnegative().optional(),
   status: z.nativeEnum(WorkshopStatus).optional(),
+  registrationOpenAt: z.coerce.date().optional(),
+  registrationCloseAt: z.coerce.date().optional(),
 });
 
 export const createWorkshopSchema = workshopRawShape
@@ -34,7 +36,27 @@ export const createWorkshopSchema = workshopRawShape
   .refine((data) => data.endTime > data.startTime, {
     path: ["endTime"],
     message: "endTime must be after startTime",
-  });
+  })
+  .refine(
+    (data) => {
+      if (!data.registrationOpenAt || !data.registrationCloseAt) return true;
+      return data.registrationOpenAt < data.registrationCloseAt;
+    },
+    {
+      path: ["registrationOpenAt"],
+      message: "registrationOpenAt must be before registrationCloseAt",
+    },
+  )
+  .refine(
+    (data) => {
+      if (!data.registrationCloseAt) return true;
+      return data.registrationCloseAt <= data.endTime;
+    },
+    {
+      path: ["registrationCloseAt"],
+      message: "registrationCloseAt must be before or equal to endTime",
+    },
+  );
 
 export const updateWorkshopSchema = workshopRawShape
   .partial()
@@ -43,13 +65,32 @@ export const updateWorkshopSchema = workshopRawShape
   })
   .refine(
     (data) => {
-      // Chỉ kiểm tra nếu cả 2 cùng tồn tại trong request update
       if (!data.startTime || !data.endTime) return true;
       return data.endTime > data.startTime;
     },
     {
       path: ["endTime"],
       message: "endTime must be after startTime",
+    },
+  )
+  .refine(
+    (data) => {
+      if (!data.registrationOpenAt || !data.registrationCloseAt) return true;
+      return data.registrationOpenAt < data.registrationCloseAt;
+    },
+    {
+      path: ["registrationOpenAt"],
+      message: "registrationOpenAt must be before registrationCloseAt",
+    },
+  )
+  .refine(
+    (data) => {
+      if (!data.registrationCloseAt || !data.endTime) return true;
+      return data.registrationCloseAt <= data.endTime;
+    },
+    {
+      path: ["registrationCloseAt"],
+      message: "registrationCloseAt must be before or equal to endTime",
     },
   );
 
