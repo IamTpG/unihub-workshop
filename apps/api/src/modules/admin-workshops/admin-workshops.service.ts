@@ -1,5 +1,4 @@
 import type { Prisma } from "@unihub/db";
-import { aiSummaryQueue } from "../../infra/queue/ai-summary.queue";
 import { NotFoundError } from "../../infra/errors/AppError";
 import { adminWorkshopsRepository } from "./admin-workshops.repository";
 import type {
@@ -14,10 +13,6 @@ export class AdminWorkshopsService {
       ...this.toWorkshopCreateData(input),
       availableSlots: input.capacity,
     });
-
-    if (workshop.pdfUrl) {
-      await aiSummaryQueue.enqueueSummary(workshop.id, workshop.pdfUrl);
-    }
 
     return workshop;
   }
@@ -43,10 +38,6 @@ export class AdminWorkshopsService {
 
     if (!workshop) {
       throw new NotFoundError("Workshop not found");
-    }
-
-    if (input.pdfUrl) {
-      await aiSummaryQueue.enqueueSummary(workshop.id, input.pdfUrl);
     }
 
     return workshop;

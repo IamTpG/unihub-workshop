@@ -9,20 +9,22 @@ interface WorkshopBriefProps {
   showPrice?: boolean;
 }
 
-export const WorkshopBrief: React.FC<WorkshopBriefProps> = ({ 
-  title, 
-  startTime, 
-  price, 
-  showPrice 
+export const WorkshopBrief: React.FC<WorkshopBriefProps> = ({
+  title,
+  startTime,
+  price,
+  showPrice,
 }) => {
+  const startTimeValue = typeof startTime === 'string' ? startTime : startTime.toISOString();
+
   return (
     <div style={containerStyle}>
       <div style={sectionHeaderStyle}>Workshop</div>
       <h2 style={workshopTitleStyle}>{title}</h2>
       <div style={dateTimeStyle}>
-        {formatDate(startTime)} • {formatTime(startTime)}
+        {formatDate(startTimeValue)} &bull; {formatTime(startTimeValue)}
       </div>
-      
+
       {showPrice && price !== undefined && (
         <div style={priceContainerStyle}>
           <div style={dividerStyle} />

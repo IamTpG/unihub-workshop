@@ -5,7 +5,7 @@ export interface OtpEmailJobData {
 
 export interface AiSummaryJobData {
   workshopId: string;
-  pdfUrl: string;
+  filePath: string;
 }
 
 export interface StudentImportJobData {

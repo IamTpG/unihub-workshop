@@ -23,7 +23,9 @@ export class WorkshopsService {
     const enrichedWorkshops = await this.withLiveAvailability(workshops);
     const total = enrichedWorkshops.length;
     const start = (query.page - 1) * query.limit;
-    const items = enrichedWorkshops.slice(start, start + query.limit);
+    const items = enrichedWorkshops
+      .slice(start, start + query.limit)
+      .map((workshop) => this.toStudentListItem(workshop));
 
     return {
       items,
@@ -41,7 +43,7 @@ export class WorkshopsService {
     const liveSlots = await this.getAvailability(id);
 
     return {
-      ...workshop,
+      ...this.toStudentDetail(workshop),
       availableSlots: liveSlots.availableSlots,
     };
   }
@@ -122,6 +124,22 @@ export class WorkshopsService {
     } catch {
       return workshops;
     }
+  }
+
+  private toStudentListItem(workshop: PublishedWorkshopListItem) {
+    const { pdfUrl, ...safeWorkshop } = workshop;
+    return {
+      ...safeWorkshop,
+      hasPdf: Boolean(pdfUrl),
+    };
+  }
+
+  private toStudentDetail(workshop: WorkshopDetail) {
+    const { pdfUrl, ...safeWorkshop } = workshop;
+    return {
+      ...safeWorkshop,
+      hasPdf: Boolean(pdfUrl),
+    };
   }
 
   private async readJsonCache<T>(key: string): Promise<T | null> {

@@ -1,3 +1,4 @@
+import type { Request } from "express";
 import { createRateLimiter } from "./rate-limiter.js";
 
 /**
@@ -7,7 +8,7 @@ import { createRateLimiter } from "./rate-limiter.js";
  */
 export const globalLimiter = createRateLimiter({
   windowMs: 60 * 1000,
-  max: (req) => {
+  max: (req: Request) => {
     const role = req.user?.role;
     if (role === "ADMIN" || role === "STAFF") return 200;
     return 100;

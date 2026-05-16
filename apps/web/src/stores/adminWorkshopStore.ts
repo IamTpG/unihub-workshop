@@ -12,6 +12,7 @@ export interface AdminWorkshop {
   location?: string | null;
   roomLayoutUrl?: string | null;
   pdfUrl?: string | null;
+  aiSummary?: string | null;
   startTime: string;
   endTime: string;
   capacity: number;
@@ -64,6 +65,11 @@ interface AdminWorkshopState {
   fetchWorkshopStats: (id: string) => Promise<WorkshopStats>;
   createWorkshop: (data: CreateWorkshopPayload) => Promise<AdminWorkshop>;
   updateWorkshop: (id: string, data: UpdateWorkshopPayload) => Promise<AdminWorkshop>;
+  uploadWorkshopPdf: (
+    id: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ) => Promise<{ message: string }>;
   clearError: () => void;
 }
 
@@ -166,6 +172,27 @@ export const useAdminWorkshopStore = create<AdminWorkshopState>((set) => ({
       const error = getErrorMessage(err, 'Failed to update workshop.');
       set({ error, isLoading: false });
       throw err;
+    }
+  },
+
+  uploadWorkshopPdf: async (id: string, file: File, onProgress?: (percent: number) => void) => {
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      const response = await api.post(`/admin/workshops/${id}/pdf`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          if (!event.total || !onProgress) return;
+          onProgress(Math.round((event.loaded * 100) / event.total));
+        },
+      });
+
+      return response.data?.data;
+    } catch (err) {
+      console.error(`Failed to upload PDF for workshop ${id}:`, err);
+      const error = getErrorMessage(err, 'Failed to upload workshop PDF.');
+      throw new Error(error);
     }
   }
 }));

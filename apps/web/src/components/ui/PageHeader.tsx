@@ -3,11 +3,19 @@ import { useNavigate } from 'react-router-dom';
 
 interface PageHeaderProps {
   title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
   backPath?: string;
   onBack?: () => void;
 }
 
-export const PageHeader: React.FC<PageHeaderProps> = ({ title, backPath, onBack }) => {
+export const PageHeader: React.FC<PageHeaderProps> = ({
+  title,
+  subtitle,
+  action,
+  backPath,
+  onBack,
+}) => {
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -22,10 +30,16 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, backPath, onBack 
 
   return (
     <header style={headerStyle}>
-      <button onClick={handleBack} style={backButtonStyle}>
-        ← Back
-      </button>
-      <h1 style={titleStyle}>{title}</h1>
+      <div style={titleGroupStyle}>
+        <button onClick={handleBack} style={backButtonStyle}>
+          &larr; Back
+        </button>
+        <div>
+          <h1 style={titleStyle}>{title}</h1>
+          {subtitle && <p style={subtitleStyle}>{subtitle}</p>}
+        </div>
+      </div>
+      {action}
     </header>
   );
 };
@@ -33,8 +47,15 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, backPath, onBack 
 const headerStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
+  justifyContent: 'space-between',
   gap: '16px',
   marginBottom: '24px',
+};
+
+const titleGroupStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '16px',
 };
 
 const backButtonStyle: React.CSSProperties = {
@@ -52,4 +73,10 @@ const titleStyle: React.CSSProperties = {
   fontWeight: 800,
   color: 'var(--text-h)',
   margin: 0,
+};
+
+const subtitleStyle: React.CSSProperties = {
+  color: 'var(--text)',
+  fontSize: '14px',
+  margin: '4px 0 0',
 };

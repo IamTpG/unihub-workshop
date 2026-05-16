@@ -135,7 +135,7 @@ const WorkshopDetail: React.FC = () => {
 
       <div style={contentStackStyle}>
         <DetailPresenterCard speakerName={workshop.speakerName} />
-        <DetailSummaryCard summary={workshop.aiSummary} />
+        <DetailSummaryCard summary={workshop.aiSummary} hasPdf={workshop.hasPdf} />
         <DetailRoomCard location={workshop.location} capacity={workshop.capacity} />
       </div>
 

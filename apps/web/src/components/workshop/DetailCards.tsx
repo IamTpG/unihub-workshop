@@ -12,13 +12,22 @@ export const DetailPresenterCard: React.FC<PresenterCardProps> = ({ speakerName 
 
 interface SummaryCardProps {
   summary?: string | null;
+  hasPdf?: boolean;
 }
-export const DetailSummaryCard: React.FC<SummaryCardProps> = ({ summary }) => (
-  <div style={cardStyle}>
-    <div style={cardHeaderStyle}>SUMMARY</div>
-    <p style={cardParagraphStyle}>{summary || 'There is no summary for this workshop'}</p>
-  </div>
-);
+export const DetailSummaryCard: React.FC<SummaryCardProps> = ({ summary, hasPdf }) => {
+  if (!summary && !hasPdf) {
+    return null;
+  }
+
+  return (
+    <div style={cardStyle}>
+      <div style={cardHeaderStyle}>SUMMARY</div>
+      <p style={cardParagraphStyle}>
+        {summary || 'Summary processing...'}
+      </p>
+    </div>
+  );
+};
 
 interface RoomCardProps {
   location: string;

@@ -5,7 +5,7 @@ import { redis } from "../redis/redis.js";
 
 interface RateLimitOptions {
   windowMs: number;
-  max: number;
+  max: number | ((req: Request) => number | Promise<number>);
   keyGenerator?: (req: Request) => string;
   message?: string;
 }
@@ -13,11 +13,12 @@ interface RateLimitOptions {
 export const createRateLimiter = (options: RateLimitOptions) => {
   return rateLimit({
     windowMs: options.windowMs,
-    max: options.max,
+    limit: options.max,
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     store: new RedisStore({
-      sendCommand: (...args: string[]) => redis.call(...args),
+      sendCommand: (...args: string[]) =>
+        redis.call(args[0]!, ...args.slice(1)) as Promise<any>,
     }),
     keyGenerator: options.keyGenerator || ((req) => req.ip || "unknown"),
     validate: false,

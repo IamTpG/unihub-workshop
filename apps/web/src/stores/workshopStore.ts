@@ -13,6 +13,7 @@ export interface ApiWorkshop {
   availableSlots: number;
   price: number | string;
   aiSummary: string | null;
+  hasPdf: boolean;
 }
 
 interface WorkshopState {

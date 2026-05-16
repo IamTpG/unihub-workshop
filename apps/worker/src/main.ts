@@ -4,7 +4,16 @@ import { registrationProcessor, seedWorkshopSlots } from "./processors/registrat
 import { paymentTimeoutProcessor } from "./processors/payment-timeout.processor.js";
 import { notificationProcessor } from "./processors/notification.processor.js";
 import { studentImportProcessor } from "./processors/student-import.processor.js";
-import { emailOtpQueue, registrationQueue, paymentTimeoutQueue, notificationQueue, studentImportQueue, redis } from "./queue.js";
+import { aiSummaryProcessor } from "./processors/ai-summary.processor.js";
+import {
+  emailOtpQueue,
+  registrationQueue,
+  paymentTimeoutQueue,
+  notificationQueue,
+  aiSummaryQueue,
+  studentImportQueue,
+  redis,
+} from "./queue.js";
 
 console.log("UniHub worker started");
 
@@ -33,6 +42,7 @@ const shutdown = async (signal: string) => {
     registrationProcessor.close(),
     paymentTimeoutProcessor.close(),
     notificationProcessor.close(),
+    aiSummaryProcessor.close(),
     studentImportProcessor.close(),
   ]);
 
@@ -41,6 +51,7 @@ const shutdown = async (signal: string) => {
     registrationQueue.close(),
     paymentTimeoutQueue.close(),
     notificationQueue.close(),
+    aiSummaryQueue.close(),
     studentImportQueue.close(),
   ]);
 

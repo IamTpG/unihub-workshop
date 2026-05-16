@@ -16,8 +16,8 @@ export class AiSummaryQueue {
     },
   });
 
-  async enqueueSummary(workshopId: string, pdfUrl: string): Promise<void> {
-    await this.queue.add("summarize-workshop-pdf", { workshopId, pdfUrl });
+  async enqueueSummary(workshopId: string, filePath: string): Promise<void> {
+    await this.queue.add("summarize-workshop-pdf", { workshopId, filePath });
     console.log(
       `[AI_SUMMARY_SERVICE] summarize workshop pdf job enqueued for workshop ${workshopId}`,
     );

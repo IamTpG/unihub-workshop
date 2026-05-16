@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
@@ -22,8 +22,12 @@ export const WorkshopDetail: React.FC = () => {
     isLoading,
     error,
     fetchWorkshopStats,
+    uploadWorkshopPdf,
     clearError,
   } = useAdminWorkshopStore();
+  const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -67,6 +71,23 @@ export const WorkshopDetail: React.FC = () => {
     </div>
   );
 
+  const handlePdfUpload = async () => {
+    if (!id || !selectedPdf) return;
+
+    setUploadError(null);
+    setUploadProgress(0);
+
+    try {
+      await uploadWorkshopPdf(id, selectedPdf, setUploadProgress);
+      setSelectedPdf(null);
+      setUploadProgress(null);
+      await fetchWorkshopStats(id);
+    } catch (err) {
+      setUploadProgress(null);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload PDF.');
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -86,10 +107,55 @@ export const WorkshopDetail: React.FC = () => {
       {/* 2. Main Flex/Grid Details Layout */}
       <div style={contentLayoutStyle}>
         <WorkshopOverviewCard workshop={currentWorkshop} />
-        <WorkshopAssetsSidebar 
-          roomLayoutUrl={currentWorkshop.roomLayoutUrl}
-          pdfUrl={currentWorkshop.pdfUrl}
-        />
+        <div style={sideStackStyle}>
+          <WorkshopAssetsSidebar
+            roomLayoutUrl={currentWorkshop.roomLayoutUrl}
+            pdfUrl={currentWorkshop.pdfUrl}
+          />
+          <section style={summaryPanelStyle}>
+            <div style={panelHeaderStyle}>PDF & AI Summary</div>
+
+            {!currentWorkshop.pdfUrl && (
+              <p style={panelTextStyle}>Upload a PDF to generate a workshop summary.</p>
+            )}
+
+            {currentWorkshop.pdfUrl && !currentWorkshop.aiSummary && (
+              <div style={processingRowStyle}>
+                <div style={smallSpinnerStyle} />
+                <span>Summary is being generated...</span>
+              </div>
+            )}
+
+            {currentWorkshop.aiSummary && (
+              <p style={summaryTextStyle}>{currentWorkshop.aiSummary}</p>
+            )}
+
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(event) => setSelectedPdf(event.target.files?.[0] ?? null)}
+              style={fileInputStyle}
+            />
+
+            {uploadProgress !== null && (
+              <div style={progressTrackStyle}>
+                <div style={{ ...progressBarStyle, width: `${uploadProgress}%` }} />
+              </div>
+            )}
+
+            {uploadError && <Alert message={uploadError} variant="error" />}
+
+            <Button
+              onClick={handlePdfUpload}
+              disabled={!selectedPdf || uploadProgress !== null}
+              loading={uploadProgress !== null}
+              loadingText="Uploading..."
+              style={{ marginTop: '12px' }}
+            >
+              {currentWorkshop.pdfUrl ? 'Replace PDF' : 'Upload PDF for AI Summary'}
+            </Button>
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -114,5 +180,88 @@ const contentLayoutStyle: React.CSSProperties = {
   gap: '32px',
   alignItems: 'start',
 };
+
+const sideStackStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '20px',
+};
+
+const summaryPanelStyle: React.CSSProperties = {
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+  backgroundColor: 'var(--bg)',
+  padding: '20px',
+  boxShadow: 'var(--shadow)',
+};
+
+const panelHeaderStyle: React.CSSProperties = {
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  color: 'var(--text)',
+  marginBottom: '12px',
+};
+
+const panelTextStyle: React.CSSProperties = {
+  margin: '0 0 14px',
+  color: 'var(--text)',
+  fontSize: '14px',
+  lineHeight: 1.5,
+};
+
+const processingRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  color: 'var(--text)',
+  fontSize: '14px',
+  marginBottom: '14px',
+};
+
+const summaryTextStyle: React.CSSProperties = {
+  margin: '0 0 16px',
+  color: 'var(--text)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  whiteSpace: 'pre-wrap',
+};
+
+const fileInputStyle: React.CSSProperties = {
+  width: '100%',
+  color: 'var(--text)',
+  fontSize: '14px',
+};
+
+const progressTrackStyle: React.CSSProperties = {
+  height: '6px',
+  backgroundColor: 'var(--border)',
+  borderRadius: '999px',
+  overflow: 'hidden',
+  marginTop: '12px',
+};
+
+const progressBarStyle: React.CSSProperties = {
+  height: '100%',
+  backgroundColor: 'var(--accent)',
+  transition: 'width 0.2s ease',
+};
+
+const smallSpinnerStyle: React.CSSProperties = {
+  width: '18px',
+  height: '18px',
+  border: '2px solid var(--border)',
+  borderTopColor: 'var(--accent)',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite',
+};
+
+if (typeof document !== 'undefined' && !document.getElementById('admin-ai-summary-spinner')) {
+  const style = document.createElement('style');
+  style.id = 'admin-ai-summary-spinner';
+  style.innerHTML = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(style);
+}
 
 export default WorkshopDetail;
