@@ -5,10 +5,12 @@ import {
   REGISTRATION_QUEUE_NAME,
   PAYMENT_TIMEOUT_QUEUE_NAME,
   NOTIFICATION_QUEUE_NAME,
+  STUDENT_IMPORT_QUEUE_NAME,
   type OtpEmailJobData,
   type RegistrationJobData,
   type PaymentTimeoutJobData,
   type NotificationJobData,
+  type StudentImportJobData,
 } from "@unihub/shared";
 import { requireEnv } from "./env.js";
 
@@ -43,4 +45,9 @@ export const paymentTimeoutQueue = new Queue<PaymentTimeoutJobData>(PAYMENT_TIME
 export const notificationQueue = new Queue<NotificationJobData>(NOTIFICATION_QUEUE_NAME, {
   connection: redis,
   defaultJobOptions,
+});
+
+export const studentImportQueue = new Queue<StudentImportJobData>(STUDENT_IMPORT_QUEUE_NAME, {
+  connection: redis,
+  defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
 });

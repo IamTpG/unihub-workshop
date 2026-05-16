@@ -1,23 +1,38 @@
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
+import { prisma } from "@unihub/db";
 import { authRepository } from "./auth.repository";
 import { emailService } from "../../infra/mail/email.service";
 import * as jwtUtils from "../../infra/auth/jwt";
 import { env } from "../../infra/config/env";
 import { redis } from "../../infra/redis/redis";
-import { AppError, TooManyRequestsError } from "../../infra/errors/AppError";
+import {
+  AppError,
+  ForbiddenError,
+  TooManyRequestsError,
+} from "../../infra/errors/AppError";
 import type { Role } from "@unihub/db";
 
 export class AuthService {
   async login(username: string) {
     const user = await authRepository.findUserByUsername(username);
 
-    // Anti-enumeration: if user doesn't exist, we still simulate the work
-    // but don't actually create or send anything.
+    // Anti-enumeration: if user doesn't exist, simulate work and return generic response.
     if (!user) {
-      // Simulate hashing delay even for non-existent users
       await bcrypt.genSalt(10);
       return { message: "OTP sent to your registered email if the account exists" };
+    }
+
+    // STUDENT users must have an ACTIVE StudentRecord matching their email.
+    // ADMIN and STAFF bypass this check.
+    if (user.role === "STUDENT") {
+      const studentRecord = await prisma.studentRecord.findUnique({
+        where: { email: user.email },
+        select: { status: true },
+      });
+      if (!studentRecord || studentRecord.status !== "ACTIVE") {
+        throw new ForbiddenError("Student record not found. Please contact admin.");
+      }
     }
 
     // Generate random 6-digit OTP

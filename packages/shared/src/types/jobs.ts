@@ -7,3 +7,8 @@ export interface AiSummaryJobData {
   workshopId: string;
   pdfUrl: string;
 }
+
+export interface StudentImportJobData {
+  importLogId: string;
+  filePath: string;
+}

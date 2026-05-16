@@ -7,12 +7,14 @@ export class RegistrationsController {
     try {
       const workshopId = String(req.params.id);
       const userId = req.user!.id;
+      const userRole = req.user!.role;
       const idempotencyKey = String(req.header("x-idempotency-key"));
 
       const result = await registrationsService.initiateRegistration(
         userId,
         workshopId,
         idempotencyKey,
+        userRole,
       );
 
       return res.status(202).json({
