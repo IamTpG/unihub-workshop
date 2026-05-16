@@ -48,3 +48,26 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     return next(new UnauthorizedError("Invalid or expired token"));
   }
 };
+
+/**
+ * SSE-compatible auth: accepts Bearer header OR ?token= query param.
+ * EventSource cannot set custom headers, so the token is passed in the URL.
+ */
+export const authenticateSSE = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  const rawToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : (req.query.token as string | undefined);
+
+  if (!rawToken) {
+    return next(new UnauthorizedError("Authentication required"));
+  }
+
+  try {
+    const payload = jwtUtils.verifyAccessToken(rawToken);
+    req.user = { id: payload.sub, role: payload.role as Role };
+    next();
+  } catch {
+    return next(new UnauthorizedError("Invalid or expired token"));
+  }
+};

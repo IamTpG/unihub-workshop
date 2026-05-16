@@ -73,7 +73,9 @@ async function processRegistration(job: Job<RegistrationJobData>) {
       userId,
       workshopId,
       registrationId,
-      type: "REGISTRATION_PAID",
+      type: "REGISTRATION_CONFIRMED",
+      title: "Registration Confirmed",
+      body: "Your spot has been reserved.",
     };
     await notificationQueue.add("notify", notifData);
 
@@ -114,6 +116,8 @@ async function processRegistration(job: Job<RegistrationJobData>) {
       workshopId,
       registrationId,
       type: "PAYMENT_RETRY",
+      title: "Payment Pending",
+      body: "Your seat is held for 30 minutes while we retry payment.",
     };
     await notificationQueue.add("notify", notifData);
     console.warn(

@@ -44,6 +44,8 @@ async function processPaymentTimeout(job: Job<PaymentTimeoutJobData>) {
     workshopId,
     registrationId,
     type: "REGISTRATION_EXPIRED",
+    title: "Reservation Expired",
+    body: "Your seat reservation has expired. Please register again.",
   };
   await notificationQueue.add("notify", notifData);
 

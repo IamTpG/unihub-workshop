@@ -62,7 +62,9 @@ export class PaymentWebhookController {
           userId: registration.userId,
           workshopId: registration.workshopId,
           registrationId: registration.id,
-          type: "REGISTRATION_PAID",
+          type: "PAYMENT_SUCCESS",
+          title: "Payment Successful",
+          body: "Your registration payment has been confirmed.",
         });
       } else {
         const finalStatus =
@@ -76,7 +78,9 @@ export class PaymentWebhookController {
           userId: registration.userId,
           workshopId: registration.workshopId,
           registrationId: registration.id,
-          type: "REGISTRATION_FAILED",
+          type: "PAYMENT_FAILED",
+          title: "Payment Failed",
+          body: "Your payment could not be processed. Your seat has been released.",
         });
       }
 

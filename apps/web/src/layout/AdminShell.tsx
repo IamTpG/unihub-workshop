@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { NotificationCenter } from '../components/notifications/NotificationCenter';
 
 export const AdminShell: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -43,6 +44,7 @@ export const AdminShell: React.FC = () => {
             <span style={{ color: 'var(--text)', fontSize: '14px' }}>Overview</span>
           </div>
           <div style={profileStyle}>
+            <NotificationCenter />
             <div style={userInfoStyle}>
               <span style={{ fontWeight: 600, color: 'var(--text-h)' }}>{user?.fullName || user?.username}</span>
               <span style={{ fontSize: '12px', color: 'var(--text)' }}>{user?.email}</span>

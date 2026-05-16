@@ -21,7 +21,9 @@ export interface NotificationJobData {
   userId: string;
   workshopId: string;
   registrationId: string;
-  type: "REGISTRATION_PAID" | "REGISTRATION_FAILED" | "REGISTRATION_EXPIRED" | "PAYMENT_RETRY";
+  type: "REGISTRATION_CONFIRMED" | "PAYMENT_SUCCESS" | "PAYMENT_FAILED" | "REGISTRATION_EXPIRED" | "PAYMENT_RETRY";
+  title: string;
+  body?: string;
 }
 
 export interface RegistrationResponse {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { NotificationCenter } from '../components/notifications/NotificationCenter';
 
 export const MobileShell: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -29,9 +30,10 @@ export const MobileShell: React.FC = () => {
           <h2 style={{ margin: 0, fontSize: '22px', color: 'var(--accent)', fontWeight: 800, letterSpacing: '-0.5px' }}>UniHub</h2>
         </Link>
         <div style={headerRightStyle}>
+          <NotificationCenter />
           {isStudent && (
-            <Link 
-              to="/my-registrations" 
+            <Link
+              to="/my-registrations"
               style={{
                 ...ticketLinkStyle,
                 color: location.pathname.startsWith('/my-registrations') ? 'var(--accent)' : 'var(--text)',
