@@ -12,6 +12,7 @@
     "format:api": "npm run format --workspace @unihub/api",
     "dev:worker": "npm run dev --workspace @unihub/worker",
     "build:worker": "npm run build:shared && npm run build --workspace @unihub/worker",
+    "start:worker": "npm run start --workspace @unihub/worker",
     "lint:worker": "npm run lint --workspace @unihub/worker",
     "build:shared": "npm run build --workspace @unihub/shared",
     "build:db": "npm run build --workspace @unihub/db",

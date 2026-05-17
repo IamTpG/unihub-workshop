@@ -25,7 +25,10 @@
       "Bash(Select-Object Name)",
       "Bash(xargs grep -l \"User.create\\\\|prisma.user.create\")",
       "Bash(xargs grep -l \"register\\\\|signup\" -i)",
-      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Select-Object Mode, Name)",
+      "Bash(grep -E \"CLAUDE|README|\\\\.md$\")"
     ]
   }
 }
