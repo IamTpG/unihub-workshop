@@ -13,6 +13,17 @@ export class AuthRepository {
     });
   }
 
+  async createUser(data: { username: string; email: string; fullName: string }) {
+    return prisma.user.create({
+      data: {
+        username: data.username,
+        email: data.email,
+        fullName: data.fullName,
+        role: "STUDENT",
+      },
+    });
+  }
+
   // OTP Token Methods
   async createOtp(userId: string, hashedCode: string, expiresAt: Date) {
     return prisma.otpToken.create({

@@ -9,7 +9,23 @@
       "Read(//tmp/**)",
       "Bash(curl -s http://localhost:3000/api/v1/health)",
       "Bash(openspec list *)",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(npx prisma *)",
+      "Bash(Get-Date *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(xargs grep -l \"import.*admin\\\\|POST.*import\\\\|uploadStudents\")",
+      "Bash(Select-Object FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(xargs grep -l \"upload\\\\|Upload\\\\|FormData\\\\|fetch\\\\|axios\")",
+      "Bash(node *)",
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l \"User.create\\\\|prisma.user.create\")",
+      "Bash(xargs grep -l \"register\\\\|signup\" -i)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")"
     ]
   }
 }

@@ -15,17 +15,28 @@ import type { Role } from "@unihub/db";
 
 export class AuthService {
   async login(username: string) {
-    const user = await authRepository.findUserByUsername(username);
+    let user = await authRepository.findUserByUsername(username);
 
-    // Anti-enumeration: if user doesn't exist, simulate work and return generic response.
     if (!user) {
-      await bcrypt.genSalt(10);
-      return { message: "OTP sent to your registered email if the account exists" };
-    }
+      // No User account yet — check if a StudentRecord exists for this studentId.
+      const studentRecord = await prisma.studentRecord.findUnique({
+        where: { studentId: username },
+      });
 
-    // STUDENT users must have an ACTIVE StudentRecord matching their email.
-    // ADMIN and STAFF bypass this check.
-    if (user.role === "STUDENT") {
+      if (!studentRecord || studentRecord.status !== "ACTIVE") {
+        // Anti-enumeration: simulate bcrypt work before returning.
+        await bcrypt.genSalt(10);
+        return { message: "OTP sent to your registered email if the account exists" };
+      }
+
+      // First login: auto-create the User from the StudentRecord.
+      user = await authRepository.createUser({
+        username: studentRecord.studentId,
+        email: studentRecord.email,
+        fullName: studentRecord.fullName,
+      });
+    } else if (user.role === "STUDENT") {
+      // Existing STUDENT account: confirm the StudentRecord is still ACTIVE.
       const studentRecord = await prisma.studentRecord.findUnique({
         where: { email: user.email },
         select: { status: true },

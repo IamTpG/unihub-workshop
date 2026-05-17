@@ -18,7 +18,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
-      setError("Please enter a username");
+      setError("Please enter your Student ID or username");
       return;
     }
 
@@ -46,11 +46,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   return (
     <form onSubmit={handleSubmit} style={formStyle}>
       <Input
-        label="Username"
+        label="Student ID / Username"
         type="text"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        placeholder="Enter your registered username"
+        placeholder="Enter your Student ID or username"
         autoFocus
         disabled={loading}
         error={error || undefined}
