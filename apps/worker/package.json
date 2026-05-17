@@ -19,6 +19,7 @@
     "dotenv": "^17.4.2",
     "ioredis": "^5.10.1",
     "nodemailer": "^8.0.6",
+    "openai": "^6.38.0",
     "opossum": "^9.0.0",
     "pdf-parse": "^2.4.5"
   },

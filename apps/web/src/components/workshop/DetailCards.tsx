@@ -21,7 +21,7 @@ export const DetailDescriptionCard: React.FC<DescriptionCardProps> = ({ descript
   return (
     <div style={cardStyle}>
       <div style={cardHeaderStyle}>ABOUT THIS WORKSHOP</div>
-      <p style={cardParagraphStyle}>{description}</p>
+      <p style={{ ...cardParagraphStyle, whiteSpace: 'pre-wrap' }}>{description}</p>
     </div>
   );
 };
@@ -35,7 +35,7 @@ export const DetailSummaryCard: React.FC<SummaryCardProps> = ({ summary, hasPdf 
   return (
     <div style={{ ...cardStyle, background: 'var(--accent-bg, #f5f0ff)' }}>
       <div style={{ ...cardHeaderStyle, color: 'var(--accent)' }}>AI SUMMARY</div>
-      <p style={cardParagraphStyle}>{summary || 'Summary processing…'}</p>
+      <p style={{ ...cardParagraphStyle, whiteSpace: 'pre-wrap' }}>{summary || 'Summary processing…'}</p>
     </div>
   );
 };
