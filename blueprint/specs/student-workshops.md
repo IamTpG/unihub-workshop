@@ -1,4 +1,4 @@
-# Specification: Workshops & Discovery
+# Specification: Student Workshops
 
 ## Description
 

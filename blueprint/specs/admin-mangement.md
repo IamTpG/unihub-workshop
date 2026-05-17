@@ -1,4 +1,4 @@
-# Specification: Admin Workshops & Student Roster
+# Specification: Admin Management
 
 ## Description
 
@@ -52,7 +52,7 @@ On the detail view, the system shows registration counts **by status** (e.g. `PA
 
 1. Organizer uploads an image (JPEG, PNG, or WebP, max **5 MB**) for an existing workshop.
 2. The system stores the file and sets `roomLayoutUrl` on the workshop.
-3. Student detail views may show this layout (see `workshops-and-discovery.md`).
+3. Student detail views may show this layout.
 
 **API:** `POST /api/v1/admin/workshops/:id/room-layout` (multipart field `image`)
 
