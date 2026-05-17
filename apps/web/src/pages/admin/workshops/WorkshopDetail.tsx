@@ -48,31 +48,17 @@ export const WorkshopDetail: React.FC = () => {
     return (
       <div style={errorWrapperStyle}>
         <Alert message={error || 'Workshop not found.'} variant="error" />
-        <div style={{ marginTop: '24px' }}>
-          <Button onClick={() => navigate('/admin/workshops')} style={{ width: 'auto' }}>
-            &larr; Back to Workshop List
-          </Button>
-        </div>
       </div>
     );
   }
 
   const headerAction = (
-    <div style={{ display: 'flex', gap: '12px' }}>
-      <Button
-        variant="outline"
-        onClick={() => navigate('/admin/workshops')}
-        style={{ width: 'auto', padding: '10px 20px' }}
-      >
-        &larr; Back
-      </Button>
-      <Button
-        onClick={() => navigate(`/admin/workshops/${id}/edit`)}
-        style={{ width: 'auto', padding: '10px 20px' }}
-      >
-        Edit Workshop
-      </Button>
-    </div>
+    <Button
+      onClick={() => navigate(`/admin/workshops/${id}/edit`)}
+      style={{ width: 'auto', padding: '10px 20px' }}
+    >
+      Edit Workshop
+    </Button>
   );
 
   const handlePdfUpload = async () => {

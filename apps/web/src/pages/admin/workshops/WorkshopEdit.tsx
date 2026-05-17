@@ -49,11 +49,6 @@ export const WorkshopEdit: React.FC = () => {
     return (
       <div style={{ maxWidth: '600px', margin: '40px auto', textAlign: 'center' }}>
         <Alert message={fetchError || 'Workshop not found.'} variant="error" />
-        <div style={{ marginTop: '24px' }}>
-          <Button onClick={() => navigate('/admin/workshops')} style={{ width: 'auto' }}>
-            &larr; Back to List
-          </Button>
-        </div>
       </div>
     );
   }

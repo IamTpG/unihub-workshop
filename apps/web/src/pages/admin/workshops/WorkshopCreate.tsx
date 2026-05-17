@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { WorkshopForm } from '../../../components/workshop/WorkshopForm';
 import { Alert } from '../../../components/ui/Alert';
-import { Button } from '../../../components/ui/Button';
 import { useAdminWorkshopStore, getErrorMessage } from '../../../stores/adminWorkshopStore';
 import type { CreateWorkshopPayload } from '../../../stores/adminWorkshopStore';
 
@@ -25,22 +24,11 @@ export const WorkshopCreate: React.FC = () => {
     }
   };
 
-  const headerAction = (
-    <Button 
-      variant="outline"
-      onClick={() => navigate('/admin/workshops')}
-      style={{ width: 'auto', padding: '10px 20px' }}
-    >
-      &larr; Back to List
-    </Button>
-  );
-
   return (
     <div style={{ maxWidth: '900px' }}>
-      <PageHeader 
-        title="Create New Workshop" 
+      <PageHeader
+        title="Create New Workshop"
         subtitle="Fill in the details to schedule a new learning session."
-        action={headerAction}
       />
 
       {error && (
