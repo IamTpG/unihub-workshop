@@ -1,0 +1,275 @@
+{
+  "students": [
+    {
+      "username": "22120001",
+      "fullName": "Nguyen Van An",
+      "email": "22120001@student.com"
+    },
+    {
+      "username": "22120002",
+      "fullName": "Tran Thi Binh",
+      "email": "22120002@student.com"
+    },
+    {
+      "username": "22120003",
+      "fullName": "Le Minh Chau",
+      "email": "22120003@student.com"
+    },
+    {
+      "username": "22120004",
+      "fullName": "Pham Hoang Duc",
+      "email": "22120004@student.com"
+    },
+    {
+      "username": "22120005",
+      "fullName": "Nguyen Thi Lan",
+      "email": "22120005@student.com"
+    }
+  ],
+  "staff": [
+    {
+      "username": "staff_nguyen",
+      "fullName": "Nguyen Van Support",
+      "email": "staff.nguyen@example.com"
+    },
+    {
+      "username": "staff_tran",
+      "fullName": "Tran Thi Support",
+      "email": "staff.tran@example.com"
+    }
+  ],
+  "admin": [
+    {
+      "username": "admin",
+      "fullName": "System Admin",
+      "email": "admin@example.com"
+    }
+  ],
+  "importLogs": [
+    {
+      "filename": "students-batch-00.csv",
+      "totalRows": 8,
+      "inserted": 6,
+      "updated": 0,
+      "skipped": 1,
+      "failed": 1,
+      "status": "DONE",
+      "createdAt": { "days": -7 }
+    },
+    {
+      "filename": "students-batch-01.csv",
+      "totalRows": 5,
+      "inserted": 5,
+      "updated": 0,
+      "skipped": 0,
+      "failed": 0,
+      "status": "DONE",
+      "createdAt": { "days": -1 }
+    }
+  ],
+  "workshops": [
+    {
+      "title": "CV and Interview Skills",
+      "description": "Practical guidance for writing a focused CV and preparing for junior developer interviews.",
+      "speakerName": "Dr. Le Nam",
+      "location": "Room A.202",
+      "roomLayoutUrl": "data:image/png;base64,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",
+      "pdfUrl": "https://example.com/workshops/cv-interview.pdf",
+      "startTime": { "days": 2, "hours": 9 },
+      "endTime": { "days": 2, "hours": 11 },
+      "capacity": 60,
+      "price": "0",
+      "status": "PUBLISHED",
+      "aiSummary": "Covers CV structure, project storytelling, interview practice, and common junior developer questions.",
+      "registrationOpenAt": { "days": -3 },
+      "registrationCloseAt": { "days": 2, "hours": 8 }
+    },
+    {
+      "title": "Backend Development with Node.js and Prisma",
+      "description": "Build a registration workflow with transactional DB updates, queues, and payment timeout handling.",
+      "speakerName": "Nguyen Backend",
+      "location": "Hall B",
+      "roomLayoutUrl": "data:image/png;base64,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",
+      "pdfUrl": "https://example.com/workshops/backend-nodejs.pdf",
+      "startTime": { "days": 10, "hours": 13 },
+      "endTime": { "days": 10, "hours": 16 },
+      "capacity": 100,
+      "price": "50000",
+      "status": "PUBLISHED",
+      "aiSummary": "Prisma transactions, idempotency keys, background workers, and slot consistency.",
+      "registrationOpenAt": { "days": 3 },
+      "registrationCloseAt": { "days": 10, "hours": 10 }
+    },
+    {
+      "title": "Introduction to AI and LLMs",
+      "description": "Core AI concepts, prompt design basics, and responsible use of large language models.",
+      "speakerName": "AI Specialist",
+      "location": "Lab 1",
+      "roomLayoutUrl": "data:image/png;base64,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",
+      "pdfUrl": "https://example.com/workshops/ai-llms.pdf",
+      "startTime": { "days": -3, "hours": 9 },
+      "endTime": { "days": -3, "hours": 11 },
+      "capacity": 40,
+      "price": "0",
+      "status": "PUBLISHED",
+      "aiSummary": "AI terminology, LLM capabilities, limitations, and practical examples for student projects.",
+      "registrationOpenAt": { "days": -14 },
+      "registrationCloseAt": { "days": -4 }
+    },
+    {
+      "title": "Mobile UI/UX Design (Preview)",
+      "description": "Staff preview of the mobile design workshop before it goes public.",
+      "speakerName": "Senior Designer",
+      "location": "Room D.305",
+      "roomLayoutUrl": "",
+      "pdfUrl": "https://example.com/workshops/uiux-mobile.pdf",
+      "startTime": { "days": 14, "hours": 9 },
+      "endTime": { "days": 14, "hours": 12 },
+      "capacity": 50,
+      "price": "25000",
+      "status": "HIDDEN",
+      "aiSummary": "Mobile layout, usability testing, component states, and design handoff. Hidden pending staff approval.",
+      "registrationOpenAt": { "days": 7 },
+      "registrationCloseAt": { "days": 14, "hours": 8 }
+    },
+    {
+      "title": "Draft: Agile Project Management",
+      "description": "Internal draft covering Scrum ceremonies, sprint planning, and retrospective techniques.",
+      "speakerName": "TBA",
+      "location": "Room C.101",
+      "roomLayoutUrl": "",
+      "pdfUrl": "https://example.com/workshops/agile-draft.pdf",
+      "startTime": { "days": 21, "hours": 9 },
+      "endTime": { "days": 21, "hours": 12 },
+      "capacity": 40,
+      "price": "0",
+      "status": "DRAFT",
+      "aiSummary": null,
+      "registrationOpenAt": { "days": 14 },
+      "registrationCloseAt": { "days": 21, "hours": 8 }
+    },
+    {
+      "title": "Cloud Infrastructure Hands-on Lab",
+      "description": "Cancelled due to venue unavailability. Retained for status filtering tests.",
+      "speakerName": "Cloud Team",
+      "location": "Lab 2",
+      "roomLayoutUrl": "",
+      "pdfUrl": "https://example.com/workshops/cloud-lab.pdf",
+      "startTime": { "days": 5, "hours": 9 },
+      "endTime": { "days": 5, "hours": 11 },
+      "capacity": 25,
+      "price": "0",
+      "status": "CANCELLED",
+      "aiSummary": null,
+      "registrationOpenAt": { "days": -2 },
+      "registrationCloseAt": { "days": 5, "hours": 8 }
+    }
+  ],
+  "registrations": [
+    {
+      "studentUsername": "22120001",
+      "workshopTitle": "CV and Interview Skills",
+      "status": "PAID",
+      "idempotencyKey": "seed-s1-cv",
+      "paymentRef": null,
+      "expiresAt": null,
+      "checkedInAt": null
+    },
+    {
+      "studentUsername": "22120002",
+      "workshopTitle": "CV and Interview Skills",
+      "status": "PAID",
+      "idempotencyKey": "seed-s2-cv",
+      "paymentRef": null,
+      "expiresAt": { "days": -0.05 },
+      "checkedInAt": { "days": -0.02 }
+    },
+    {
+      "studentUsername": "22120003",
+      "workshopTitle": "CV and Interview Skills",
+      "status": "HOLDING",
+      "idempotencyKey": "seed-s3-cv",
+      "paymentRef": "mock-intent-s3-cv",
+      "expiresAt": { "days": 0, "hours": 1 },
+      "checkedInAt": null
+    },
+    {
+      "studentUsername": "22120001",
+      "workshopTitle": "Backend Development with Node.js and Prisma",
+      "status": "HOLDING",
+      "idempotencyKey": "seed-s1-backend",
+      "paymentRef": "mock-intent-s1-backend",
+      "expiresAt": { "days": 0, "hours": 1 },
+      "checkedInAt": null
+    },
+    {
+      "studentUsername": "22120004",
+      "workshopTitle": "Backend Development with Node.js and Prisma",
+      "status": "PENDING",
+      "idempotencyKey": "seed-s4-backend",
+      "paymentRef": null,
+      "expiresAt": null,
+      "checkedInAt": null
+    },
+    {
+      "studentUsername": "22120004",
+      "workshopTitle": "Introduction to AI and LLMs",
+      "status": "PAID",
+      "idempotencyKey": "seed-s4-ai",
+      "paymentRef": null,
+      "expiresAt": null,
+      "checkedInAt": { "days": -3, "hours": 10 }
+    },
+    {
+      "studentUsername": "22120005",
+      "workshopTitle": "Introduction to AI and LLMs",
+      "status": "EXPIRED",
+      "idempotencyKey": "seed-s5-ai",
+      "paymentRef": null,
+      "expiresAt": { "days": -4 },
+      "checkedInAt": null
+    }
+  ],
+  "notifications": [
+    {
+      "username": "22120001",
+      "type": "SEED_REGISTRATION_CONFIRMED",
+      "title": "Registration Confirmed",
+      "body": "Your registration for CV and Interview Skills is confirmed.",
+      "isRead": false,
+      "idempotencyKey": "seed-notif-s1-cv"
+    },
+    {
+      "username": "22120001",
+      "type": "SEED_PAYMENT_PENDING",
+      "title": "Payment Pending",
+      "body": "Your Backend Development seat is held. Please complete payment within 10 minutes.",
+      "isRead": false,
+      "idempotencyKey": "seed-notif-s1-backend"
+    },
+    {
+      "username": "22120002",
+      "type": "SEED_CHECKIN_SUCCESS",
+      "title": "Check-in Successful",
+      "body": "You have been checked in to CV and Interview Skills.",
+      "isRead": true,
+      "idempotencyKey": "seed-notif-s2-checkin"
+    },
+    {
+      "username": "22120005",
+      "type": "SEED_REGISTRATION_EXPIRED",
+      "title": "Registration Expired",
+      "body": "Your registration for Introduction to AI and LLMs has expired.",
+      "isRead": false,
+      "idempotencyKey": "seed-notif-s5-expired"
+    },
+    {
+      "username": "staff_nguyen",
+      "type": "SEED_ADMIN_NOTICE",
+      "title": "Seed Data Ready",
+      "body": "Demo users, workshops, registrations, and student records are loaded.",
+      "isRead": true,
+      "idempotencyKey": "seed-notif-staff"
+    }
+  ]
+}

@@ -1,4 +1,7 @@
 import "dotenv/config";
+import { readFileSync } from "fs";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 import {
   PrismaClient,
   RegStatus,
@@ -8,8 +11,53 @@ import {
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 
-const connectionString = process.env.DATABASE_URL;
+// ── Types for seed.json ────────────────────────────────────────────────────
 
+type DateOffset = { days: number; hours?: number } | null;
+
+interface UserDef   { username: string; fullName: string; email: string }
+interface ImportLogDef {
+  filename: string; totalRows: number; inserted: number;
+  updated: number; skipped: number; failed: number;
+  status: string; createdAt: DateOffset;
+}
+interface WorkshopDef {
+  title: string; description: string; speakerName: string;
+  location: string; roomLayoutUrl: string; pdfUrl: string;
+  startTime: DateOffset; endTime: DateOffset;
+  capacity: number; price: string; status: string;
+  aiSummary: string | null;
+  registrationOpenAt: DateOffset; registrationCloseAt: DateOffset;
+}
+interface RegistrationDef {
+  studentUsername: string; workshopTitle: string;
+  status: string; idempotencyKey: string;
+  paymentRef: string | null; expiresAt: DateOffset; checkedInAt: DateOffset;
+}
+interface NotificationDef {
+  username: string; type: string; title: string;
+  body: string; isRead: boolean; idempotencyKey: string;
+}
+interface SeedData {
+  students:      UserDef[];
+  staff:         UserDef[];
+  admin:         UserDef[];
+  importLogs:    ImportLogDef[];
+  workshops:     WorkshopDef[];
+  registrations: RegistrationDef[];
+  notifications: NotificationDef[];
+}
+
+// ── Load seed.json ─────────────────────────────────────────────────────────
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const seedData: SeedData = JSON.parse(
+  readFileSync(resolve(__dirname, "../../../data/seed.json"), "utf-8"),
+);
+
+// ── DB client ──────────────────────────────────────────────────────────────
+
+const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error("DATABASE_URL is required to seed the database");
 }
@@ -18,397 +66,169 @@ const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const hour = 60 * 60 * 1000;
-const day = 24 * hour;
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-function addTime(days: number, hours = 0) {
-  return new Date(Date.now() + days * day + hours * hour);
+const HOUR = 60 * 60 * 1000;
+const DAY  = 24 * HOUR;
+
+function resolveDate(offset: DateOffset): Date | null {
+  if (!offset) return null;
+  return new Date(Date.now() + offset.days * DAY + (offset.hours ?? 0) * HOUR);
 }
 
-async function upsertWorkshopByTitle(data: {
-  title: string;
-  description?: string;
-  speakerName?: string;
-  location?: string;
-  roomLayoutUrl?: string;
-  pdfUrl?: string;
-  startTime: Date;
-  endTime: Date;
-  capacity: number;
-  price: string;
-  status: WorkshopStatus;
-  aiSummary?: string;
-  registrationOpenAt?: Date;
-  registrationCloseAt?: Date;
-}) {
-  const existing = await prisma.workshop.findFirst({
-    where: { title: data.title },
-    select: { id: true },
-  });
-
-  if (existing) {
-    return prisma.workshop.update({
-      where: { id: existing.id },
-      data,
-    });
-  }
-
-  return prisma.workshop.create({
-    data: {
-      ...data,
-      availableSlots: data.capacity,
-    },
-  });
-}
-
-async function syncWorkshopSlots(workshopId: string, capacity: number) {
+async function syncSlots(workshopId: string, capacity: number) {
   const reserved = await prisma.registration.count({
     where: {
       workshopId,
-      status: {
-        in: [RegStatus.PENDING, RegStatus.HOLDING, RegStatus.PAID],
-      },
+      status: { in: [RegStatus.PENDING, RegStatus.HOLDING, RegStatus.PAID] },
     },
   });
-
   await prisma.workshop.update({
     where: { id: workshopId },
-    data: { availableSlots: Math.max(capacity - reserved, 0) },
+    data:  { availableSlots: Math.max(capacity - reserved, 0) },
   });
 }
 
+// ── Main ───────────────────────────────────────────────────────────────────
+
 async function main() {
-  console.log("Starting database seed...");
+  // 1. WIPE (dependency order — avoids FK constraint errors)
+  console.log("Clearing old data...");
+  await prisma.registration.deleteMany({});
+  await prisma.notification.deleteMany({});
+  await prisma.otpToken.deleteMany({});
+  await prisma.refreshToken.deleteMany({});
+  await prisma.importLog.deleteMany({});
+  await prisma.studentRecord.deleteMany({});
+  await prisma.workshop.deleteMany({});
+  await prisma.user.deleteMany({});
 
+  // 2. USERS
   console.log("Seeding users...");
-  const users = [
-    {
-      username: "22120001",
-      fullName: "Nguyen Van An",
-      email: "student1@example.com",
-      role: Role.STUDENT,
-    },
-    {
-      username: "22120002",
-      fullName: "Tran Thi Binh",
-      email: "student2@example.com",
-      role: Role.STUDENT,
-    },
-    {
-      username: "22120003",
-      fullName: "Le Minh Chau",
-      email: "student3@example.com",
-      role: Role.STUDENT,
-    },
-    {
-      username: "staff_nguyen",
-      fullName: "Nguyen Support",
-      email: "staff.nguyen@example.com",
-      role: Role.STAFF,
-    },
-    {
-      username: "admin",
-      fullName: "System Admin",
-      email: "admin@example.com",
-      role: Role.ADMIN,
-    },
-  ];
+  await prisma.user.createMany({
+    data: [
+      ...seedData.students.map((u) => ({ ...u, role: Role.STUDENT })),
+      ...seedData.staff.map((u)    => ({ ...u, role: Role.STAFF   })),
+      ...seedData.admin.map((u)    => ({ ...u, role: Role.ADMIN   })),
+    ],
+  });
 
-  for (const user of users) {
-    await prisma.user.upsert({
-      where: { username: user.username },
-      update: user,
-      create: user,
-    });
-  }
+  // Build username → id lookup used by registrations & notifications
+  const allUsers = await prisma.user.findMany({ select: { id: true, username: true } });
+  const userIdByUsername = new Map(allUsers.map((u) => [u.username, u.id]));
 
-  console.log("Seeding student roster...");
-  const studentRecords = [
-    {
-      studentId: "22120001",
-      email: "student1@example.com",
-      fullName: "Nguyen Van An",
-      status: "ACTIVE",
-    },
-    {
-      studentId: "22120002",
-      email: "student2@example.com",
-      fullName: "Tran Thi Binh",
-      status: "ACTIVE",
-    },
-    {
-      studentId: "22120003",
-      email: "student3@example.com",
-      fullName: "Le Minh Chau",
-      status: "INACTIVE",
-    },
-  ];
+  // 3. STUDENT RECORDS (every student entry here must be a User)
+  console.log("Seeding student records...");
+  await prisma.studentRecord.createMany({
+    data: seedData.students.map((s) => ({
+      studentId: s.username,
+      email:     s.email,
+      fullName:  s.fullName,
+      status:    "ACTIVE",
+    })),
+  });
 
-  for (const record of studentRecords) {
-    await prisma.studentRecord.upsert({
-      where: { studentId: record.studentId },
-      update: record,
-      create: record,
-    });
-  }
+  // 4. IMPORT LOGS
+  console.log("Seeding import logs...");
+  await prisma.importLog.createMany({
+    data: seedData.importLogs.map((l) => ({
+      filename:  l.filename,
+      totalRows: l.totalRows,
+      inserted:  l.inserted,
+      updated:   l.updated,
+      skipped:   l.skipped,
+      failed:    l.failed,
+      status:    l.status,
+      createdAt: resolveDate(l.createdAt) ?? new Date(),
+    })),
+  });
 
+  // 5. WORKSHOPS
   console.log("Seeding workshops...");
-  const workshops = [
-    {
-      title: "CV and Interview Skills",
-      description:
-        "Practical guidance for writing a focused CV and preparing for junior developer interviews.",
-      speakerName: "Dr. Le Nam",
-      location: "Room A.202",
-      roomLayoutUrl: "https://example.com/layouts/a202.png",
-      pdfUrl: "https://example.com/workshops/cv-interview.pdf",
-      startTime: addTime(1, 9),
-      endTime: addTime(1, 11),
-      capacity: 60,
-      price: "0",
-      status: WorkshopStatus.PUBLISHED,
-      aiSummary:
-        "This workshop covers CV structure, project storytelling, interview practice, and common junior developer questions.",
-      registrationOpenAt: addTime(-2),
-      registrationCloseAt: addTime(1, 8),
-    },
-    {
-      title: "Backend Development with Node.js and Prisma",
-      description:
-        "Build a registration workflow with transactional database updates, queues, and payment timeout handling.",
-      speakerName: "Nguyen Backend",
-      location: "Hall B",
-      startTime: addTime(2, 13),
-      endTime: addTime(2, 16),
-      capacity: 100,
-      price: "50000",
-      status: WorkshopStatus.PUBLISHED,
-      aiSummary:
-        "A hands-on backend session about Prisma transactions, idempotency keys, background workers, and slot consistency.",
-      registrationOpenAt: addTime(-1),
-      registrationCloseAt: addTime(2, 10),
-    },
-    {
-      title: "Introduction to AI and LLMs",
-      description:
-        "Learn core AI concepts, prompt design basics, and responsible ways to use large language models in coursework.",
-      speakerName: "AI Specialist",
-      location: "Lab 1",
-      startTime: addTime(3, 8),
-      endTime: addTime(3, 12),
-      capacity: 40,
-      price: "0",
-      status: WorkshopStatus.PUBLISHED,
-      aiSummary:
-        "The session introduces AI terminology, LLM capabilities, limitations, and practical examples for student projects.",
-      registrationOpenAt: addTime(-1),
-      registrationCloseAt: addTime(3, 7),
-    },
-    {
-      title: "Mobile UI/UX Design",
-      description:
-        "Design mobile flows that are clear, accessible, and easy to implement with modern frontend tooling.",
-      speakerName: "Senior Designer",
-      location: "Room D.305",
-      startTime: addTime(5, 9),
-      endTime: addTime(5, 12),
-      capacity: 50,
-      price: "25000",
-      status: WorkshopStatus.PUBLISHED,
-      aiSummary:
-        "The workshop focuses on mobile layout, usability testing, component states, and practical design handoff.",
-      registrationOpenAt: addTime(1),
-      registrationCloseAt: addTime(5, 8),
-    },
-    {
-      title: "Public Speaking and Communication",
-      description:
-        "Practice structuring a short talk, presenting clearly, and handling audience questions with confidence.",
-      speakerName: "Coach Minh Tran",
-      location: "Hall C",
-      startTime: addTime(7, 14),
-      endTime: addTime(7, 16),
-      capacity: 120,
-      price: "0",
-      status: WorkshopStatus.PUBLISHED,
-      aiSummary:
-        "This session helps students plan concise presentations, use examples well, and answer questions clearly.",
-      registrationOpenAt: addTime(-1),
-      registrationCloseAt: addTime(7, 12),
-    },
-    {
-      title: "Draft Workshop",
-      description: "Internal draft content for admin testing.",
-      speakerName: "TBA",
-      location: "Room C.101",
-      startTime: addTime(10, 9),
-      endTime: addTime(10, 11),
-      capacity: 30,
-      price: "0",
-      status: WorkshopStatus.DRAFT,
-      aiSummary: "Draft summary visible only to admin workflows.",
-      registrationOpenAt: addTime(8),
-      registrationCloseAt: addTime(10, 8),
-    },
-    {
-      title: "Cancelled Cloud Lab",
-      description: "Cancelled workshop retained for status filtering tests.",
-      speakerName: "Cloud Team",
-      location: "Lab 2",
-      startTime: addTime(4, 9),
-      endTime: addTime(4, 11),
-      capacity: 25,
-      price: "0",
-      status: WorkshopStatus.CANCELLED,
-      aiSummary: "Cancelled event used to verify that public lists hide cancelled workshops.",
-      registrationOpenAt: addTime(-1),
-      registrationCloseAt: addTime(4, 8),
-    },
-  ];
-
-  const workshopByTitle = new Map<string, { id: string; capacity: number }>();
-
-  for (const workshop of workshops) {
-    const saved = await upsertWorkshopByTitle(workshop);
-    workshopByTitle.set(saved.title, { id: saved.id, capacity: saved.capacity });
-  }
-
-  const student1 = await prisma.user.findUniqueOrThrow({
-    where: { username: "22120001" },
-  });
-  const student2 = await prisma.user.findUniqueOrThrow({
-    where: { username: "22120002" },
-  });
-  const staff = await prisma.user.findUniqueOrThrow({
-    where: { username: "staff_nguyen" },
-  });
-
-  const cvWorkshop = workshopByTitle.get("CV and Interview Skills");
-  const backendWorkshop = workshopByTitle.get(
-    "Backend Development with Node.js and Prisma",
-  );
-  const aiWorkshop = workshopByTitle.get("Introduction to AI and LLMs");
-
-  if (!cvWorkshop || !backendWorkshop || !aiWorkshop) {
-    throw new Error("Expected seeded workshops were not created");
-  }
-
-  console.log("Seeding registrations...");
-  const registrations = [
-    {
-      userId: student1.id,
-      workshopId: cvWorkshop.id,
-      status: RegStatus.PAID,
-      idempotencyKey: "seed-student1-cv",
-      paymentRef: null,
-      expiresAt: null,
-      checkedInAt: null,
-    },
-    {
-      userId: student2.id,
-      workshopId: cvWorkshop.id,
-      status: RegStatus.PAID,
-      idempotencyKey: "seed-student2-cv",
-      paymentRef: null,
-      expiresAt: addTime(-0.1),
-      checkedInAt: addTime(-0.05),
-    },
-    {
-      userId: student1.id,
-      workshopId: backendWorkshop.id,
-      status: RegStatus.HOLDING,
-      idempotencyKey: "seed-student1-backend",
-      paymentRef: "mock-intent-seed-001",
-      expiresAt: addTime(0, 1),
-      checkedInAt: null,
-    },
-    {
-      userId: student2.id,
-      workshopId: aiWorkshop.id,
-      status: RegStatus.PENDING,
-      idempotencyKey: "seed-student2-ai",
-      paymentRef: null,
-      expiresAt: null,
-      checkedInAt: null,
-    },
-  ];
-
-  for (const registration of registrations) {
-    const saved = await prisma.registration.upsert({
-      where: {
-        userId_workshopId: {
-          userId: registration.userId,
-          workshopId: registration.workshopId,
+  const createdWorkshops = await Promise.all(
+    seedData.workshops.map((w) =>
+      prisma.workshop.create({
+        data: {
+          title:               w.title,
+          description:         w.description,
+          speakerName:         w.speakerName,
+          location:            w.location,
+          roomLayoutUrl:       w.roomLayoutUrl,
+          pdfUrl:              w.pdfUrl,
+          startTime:           resolveDate(w.startTime)!,
+          endTime:             resolveDate(w.endTime)!,
+          capacity:            w.capacity,
+          availableSlots:      w.capacity,
+          price:               w.price,
+          status:              w.status as WorkshopStatus,
+          aiSummary:           w.aiSummary,
+          registrationOpenAt:  resolveDate(w.registrationOpenAt),
+          registrationCloseAt: resolveDate(w.registrationCloseAt),
         },
+      }),
+    ),
+  );
+
+  const workshopIdByTitle = new Map(createdWorkshops.map((w) => [w.title, w.id]));
+
+  // 6. REGISTRATIONS
+  console.log("Seeding registrations...");
+  for (const r of seedData.registrations) {
+    const userId     = userIdByUsername.get(r.studentUsername);
+    const workshopId = workshopIdByTitle.get(r.workshopTitle);
+    if (!userId)     throw new Error(`Unknown student username: ${r.studentUsername}`);
+    if (!workshopId) throw new Error(`Unknown workshop title: ${r.workshopTitle}`);
+
+    const saved = await prisma.registration.create({
+      data: {
+        userId,
+        workshopId,
+        status:          r.status as RegStatus,
+        idempotencyKey:  r.idempotencyKey,
+        paymentRef:      r.paymentRef,
+        expiresAt:       resolveDate(r.expiresAt),
+        checkedInAt:     resolveDate(r.checkedInAt),
       },
-      update: registration,
-      create: registration,
     });
 
-    if (registration.status === RegStatus.PAID) {
+    if (r.status === "PAID") {
       await prisma.registration.update({
         where: { id: saved.id },
-        data: { qrStub: saved.id },
+        data:  { qrStub: saved.id },
       });
     }
   }
 
-  console.log("Seeding notifications...");
-  await prisma.notification.deleteMany({
-    where: {
-      type: { startsWith: "SEED_" },
-    },
-  });
-
-  await prisma.notification.createMany({
-    data: [
-      {
-        userId: student1.id,
-        type: "SEED_REGISTRATION_CONFIRMED",
-        title: "Registration Confirmed",
-        body: "Your registration for CV and Interview Skills is confirmed.",
-        isRead: false,
-      },
-      {
-        userId: student1.id,
-        type: "SEED_PAYMENT_PENDING",
-        title: "Payment Pending",
-        body: "Your Backend Development seat is held while payment is pending.",
-        isRead: false,
-      },
-      {
-        userId: staff.id,
-        type: "SEED_ADMIN_NOTICE",
-        title: "Seed Data Ready",
-        body: "Demo users, workshops, registrations, and student records are available.",
-        isRead: true,
-      },
-    ],
-  });
-
-  console.log("Seeding import log sample...");
-  await prisma.importLog.deleteMany({
-    where: { filename: "seed-students.csv" },
-  });
-
-  await prisma.importLog.create({
-    data: {
-      filename: "seed-students.csv",
-      totalRows: studentRecords.length,
-      inserted: studentRecords.length,
-      updated: 0,
-      skipped: 0,
-      failed: 0,
-      status: "DONE",
-    },
-  });
-
+  // 7. SYNC AVAILABLE SLOTS
   console.log("Synchronizing available slots...");
-  for (const workshop of workshopByTitle.values()) {
-    await syncWorkshopSlots(workshop.id, workshop.capacity);
+  for (const w of createdWorkshops) {
+    await syncSlots(w.id, w.capacity);
   }
 
-  console.log("Database seed completed.");
+  // 8. NOTIFICATIONS
+  console.log("Seeding notifications...");
+  await prisma.notification.createMany({
+    data: seedData.notifications.map((n) => {
+      const userId = userIdByUsername.get(n.username);
+      if (!userId) throw new Error(`Unknown notification username: ${n.username}`);
+      return {
+        userId,
+        type:           n.type,
+        title:          n.title,
+        body:           n.body,
+        isRead:         n.isRead,
+        idempotencyKey: n.idempotencyKey,
+      };
+    }),
+  });
+
+  const { students, staff, admin, workshops, registrations } = seedData;
+  console.log("Database seed completed successfully.");
+  console.log(`  Users:          ${students.length + staff.length + admin.length}  (${admin.length} ADMIN · ${staff.length} STAFF · ${students.length} STUDENT)`);
+  console.log(`  StudentRecords: ${students.length}`);
+  console.log(`  ImportLogs:     ${seedData.importLogs.length}`);
+  console.log(`  Workshops:      ${workshops.length}  (${workshops.filter((w) => w.status === "DRAFT").length} DRAFT · ${workshops.filter((w) => w.status === "PUBLISHED").length} PUBLISHED · ${workshops.filter((w) => w.status === "HIDDEN").length} HIDDEN · ${workshops.filter((w) => w.status === "CANCELLED").length} CANCELLED)`);
+  console.log(`  Registrations:  ${registrations.length}`);
 }
 
 main()

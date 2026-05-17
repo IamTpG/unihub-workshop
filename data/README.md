@@ -1,3 +1,3 @@
 # Data
 
-Reserved for import fixtures, sample datasets, and local demo data.
+`seed.json` will be used to import mock data using `/packages/db/prisma/seed.ts`
