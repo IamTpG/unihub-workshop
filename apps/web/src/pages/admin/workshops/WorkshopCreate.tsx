@@ -27,6 +27,7 @@ export const WorkshopCreate: React.FC = () => {
   return (
     <div style={{ maxWidth: '900px' }}>
       <PageHeader
+        backPath="/admin/workshops"
         title="Create New Workshop"
         subtitle="Fill in the details to schedule a new learning session."
       />

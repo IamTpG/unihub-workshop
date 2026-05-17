@@ -22,22 +22,6 @@ const getWorkshopSchema = (isEdit: boolean) => z
       .positive('Capacity must be greater than 0'),
     price: z.number({ message: 'Price must be a number' })
       .min(0, 'Price cannot be negative'),
-    roomLayoutUrl: z
-      .string()
-      .trim()
-      .optional()
-      .or(z.literal(''))
-      .refine((val) => !val || /^https?:\/\/.+/.test(val), {
-        message: 'Must be a valid URL starting with http:// or https://',
-      }),
-    pdfUrl: z
-      .string()
-      .trim()
-      .optional()
-      .or(z.literal(''))
-      .refine((val) => !val || /^https?:\/\/.+/.test(val), {
-        message: 'Must be a valid URL starting with http:// or https://',
-      }),
     status: z.enum(['DRAFT', 'PUBLISHED', 'CANCELLED']),
     registrationOpenAt: z.string().optional().or(z.literal('')),
     registrationCloseAt: z.string().optional().or(z.literal('')),
@@ -111,8 +95,6 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
       endTime: '',
       capacity: undefined,
       price: 0,
-      roomLayoutUrl: '',
-      pdfUrl: '',
       status: 'DRAFT',
       registrationOpenAt: '',
       registrationCloseAt: '',
@@ -131,8 +113,6 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
         endTime: formatToDatetimeLocal(initialData.endTime),
         capacity: initialData.capacity,
         price: initialData.price,
-        roomLayoutUrl: initialData.roomLayoutUrl || '',
-        pdfUrl: initialData.pdfUrl || '',
         status: initialData.status,
         registrationOpenAt: formatToDatetimeLocal(initialData.registrationOpenAt),
         registrationCloseAt: formatToDatetimeLocal(initialData.registrationCloseAt),
@@ -151,8 +131,6 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
         endTime: new Date(values.endTime).toISOString(),
         capacity: values.capacity,
         price: values.price,
-        roomLayoutUrl: values.roomLayoutUrl?.trim() || undefined,
-        pdfUrl: values.pdfUrl?.trim() || undefined,
         status: values.status,
         registrationOpenAt: values.registrationOpenAt
           ? new Date(values.registrationOpenAt).toISOString()
@@ -270,20 +248,6 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({
           placeholder="0.00"
           error={errors.price?.message}
           {...register('price', { valueAsNumber: true })}
-        />
-
-        <Input
-          label="Room Layout Image URL"
-          placeholder="https://example.com/layout.png"
-          error={errors.roomLayoutUrl?.message}
-          {...register('roomLayoutUrl')}
-        />
-
-        <Input
-          label="Workshop Info PDF URL"
-          placeholder="https://example.com/syllabus.pdf"
-          error={errors.pdfUrl?.message}
-          {...register('pdfUrl')}
         />
 
         <div style={fullWidthStyle}>

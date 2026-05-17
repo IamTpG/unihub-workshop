@@ -98,6 +98,7 @@ export const WorkshopDetail: React.FC = () => {
   return (
     <div>
       <PageHeader
+        backPath="/admin/workshops"
         title={currentWorkshop.title}
         subtitle={formatDateTimeRange(currentWorkshop.startTime, currentWorkshop.endTime)}
         action={headerAction}
