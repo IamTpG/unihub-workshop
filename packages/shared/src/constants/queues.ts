@@ -1,4 +1,5 @@
 export const EMAIL_OTP_QUEUE_NAME = "email-otp";
+export const REGISTRATION_EMAIL_QUEUE_NAME = "registration-email";
 export const AI_SUMMARY_QUEUE_NAME = "ai-summary-queue";
 export const REGISTRATION_QUEUE_NAME = "registration-queue";
 export const PAYMENT_TIMEOUT_QUEUE_NAME = "payment-timeout";

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { redis } from "../infra/redis/redis";
 
 const TTL_SECONDS = 86400; // 24 hours
+const ERROR_TTL_SECONDS = 60; // cache errors briefly so retries see the same error
 
 const redisKey = (key: string) => `idempotency:${key}`;
 
@@ -35,16 +36,24 @@ export const idempotency = () => {
       return res.status(cached.status).json(cached.body);
     }
 
-    await redis.set(rKey, "IN_PROGRESS", "EX", TTL_SECONDS);
+    // Use NX so only the first concurrent caller sets IN_PROGRESS.
+    // A null return means the key already existed — another request beat us here.
+    const acquired = await redis.set(rKey, "IN_PROGRESS", "EX", TTL_SECONDS, "NX");
+    if (acquired === null) {
+      return res.error(
+        "Request with this idempotency key is already in progress",
+        [],
+        409,
+      );
+    }
 
     const originalJson = res.json.bind(res);
     res.json = function (body: unknown) {
       res.json = originalJson;
       const status = res.statusCode ?? 200;
-      if (status < 500) {
-        redis
-          .set(rKey, JSON.stringify({ status, body }), "EX", TTL_SECONDS)
-          .catch(() => {});
+      const ttl = status >= 500 ? null : status >= 400 ? ERROR_TTL_SECONDS : TTL_SECONDS;
+      if (ttl !== null) {
+        redis.set(rKey, JSON.stringify({ status, body }), "EX", ttl).catch(() => {});
       } else {
         redis.del(rKey).catch(() => {});
       }

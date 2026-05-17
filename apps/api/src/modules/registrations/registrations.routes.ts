@@ -31,4 +31,11 @@ router.get(
   registrationsController.getRegistration,
 );
 
+router.post(
+  "/registrations/:id/retry-payment",
+  authenticate,
+  requireRoles([Role.STUDENT]),
+  registrationsController.retryPayment,
+);
+
 export default router;

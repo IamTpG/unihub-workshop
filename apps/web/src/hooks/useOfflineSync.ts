@@ -41,29 +41,38 @@ export const useOfflineSync = () => {
     }
   }, []);
 
-  const applyBatchResult = useCallback((pendingItems: OfflineCheckInQueueItem[], result: BatchCheckInResponse) => {
-    const syncedIds = new Set(result.syncedIds);
-    const failedIds = new Set(result.failedIds);
+  // The batch API returns syncedIds / failedIds keyed by the registrationId
+  // value that was sent in the request (item.qrToken, which equals registrationId
+  // because qrStub is set to the registration UUID). We match on qrToken here
+  // so a future change to QR encoding only needs to update offlineQueue.ts.
+  const applyBatchResult = useCallback(
+    (pendingItems: OfflineCheckInQueueItem[], result: BatchCheckInResponse) => {
+      const syncedIds = new Set(result.syncedIds);
+      const failedIds = new Set(result.failedIds);
 
-    pendingItems.forEach((item) => {
-      if (syncedIds.has(item.qrToken)) {
-        updateItem(item.id, {
-          syncStatus: 'synced',
-          failureReason: undefined,
-        });
-        return;
-      }
+      pendingItems.forEach((item) => {
+        // The API echoes back the registrationId we sent (= item.qrToken)
+        if (syncedIds.has(item.qrToken)) {
+          updateItem(item.id, {
+            syncStatus: 'synced',
+            failureReason: undefined,
+          });
+          return;
+        }
 
-      if (failedIds.has(item.qrToken)) {
-        const retryCount = item.retryCount + 1;
-        updateItem(item.id, {
-          retryCount,
-          syncStatus: retryCount >= MAX_ITEM_RETRIES ? 'failed' : 'pending',
-          failureReason: retryCount >= MAX_ITEM_RETRIES ? 'Max retries reached' : undefined,
-        });
-      }
-    });
-  }, []);
+        if (failedIds.has(item.qrToken)) {
+          const retryCount = item.retryCount + 1;
+          updateItem(item.id, {
+            retryCount,
+            syncStatus: retryCount >= MAX_ITEM_RETRIES ? 'failed' : 'pending',
+            failureReason:
+              retryCount >= MAX_ITEM_RETRIES ? 'Max retries reached' : undefined,
+          });
+        }
+      });
+    },
+    [],
+  );
 
   const syncNow = useCallback(
     async (attempt = 0): Promise<void> => {
@@ -79,12 +88,18 @@ export const useOfflineSync = () => {
       setIsSyncing(true);
 
       try {
-        const response = await api.post<ApiEnvelope<BatchCheckInResponse>>('/check-ins/batch', {
-          items: pendingItems.map((item) => ({
-            registrationId: item.qrToken,
-            checkedInAt: item.localTimestamp,
-          })),
-        });
+        // item.qrToken encodes the registration UUID (qrStub = registrationId).
+        // We send it under the key "registrationId" so the batch endpoint can
+        // look it up by primary key, which is faster than scanning qrStub.
+        const response = await api.post<ApiEnvelope<BatchCheckInResponse>>(
+          '/check-ins/batch',
+          {
+            items: pendingItems.map((item) => ({
+              registrationId: item.qrToken,
+              checkedInAt: item.localTimestamp,
+            })),
+          },
+        );
 
         applyBatchResult(pendingItems, normalizeBatchResponse(response.data));
         clearRetryTimer();

@@ -5,7 +5,6 @@ import { AdminShell } from '../layout/AdminShell';
 import { MobileShell } from '../layout/MobileShell';
 
 // Lazy loads or placeholders for direct import
-import AdminDashboard from '../pages/admin/Dashboard';
 import StudentHome from '../pages/student/Home';
 import WorkshopDetail from '../pages/student/WorkshopDetail';
 import StaffDesk from '../pages/staff/Desk';
@@ -55,7 +54,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <AdminDashboard />,
+        element: <Navigate to="/admin/workshops" replace />,
       },
       {
         path: 'workshops',

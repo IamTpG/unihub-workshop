@@ -5,16 +5,39 @@ import { redis } from "../queue.js";
 
 /**
  * Notification Processor
- * Persists notification to DB, then publishes to Redis Pub/Sub for SSE delivery.
+ * Persists notification to DB (idempotently), then publishes to Redis Pub/Sub for SSE delivery.
  */
 export async function processNotification(job: Job<NotificationJobData>) {
-  const { userId, type, title, body } = job.data;
-  console.log(`[NOTIFICATION_PROCESSOR] Processing notification for user ${userId} (job ${job.id})`);
+  const { userId, type, title, body, registrationId } = job.data;
+  console.log(
+    `[NOTIFICATION_PROCESSOR] Processing notification for user ${userId} (job ${job.id})`,
+  );
 
-  // Persist first — if this fails the job retries before any pub/sub
-  await prisma.notification.create({
-    data: { userId, type, title, body: body ?? null, isRead: false },
-  });
+  // Build a stable idempotency key from the job's unique attributes so that
+  // BullMQ retries create at most one Notification record per logical event.
+  const idempotencyKey = `notif:${job.id}`;
+
+  try {
+    await prisma.notification.upsert({
+      where: { idempotencyKey },
+      create: { userId, type, title, body: body ?? null, isRead: false, idempotencyKey },
+      update: {},
+    });
+  } catch (err) {
+    const isPrismaUniqueError =
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: string }).code === "P2002";
+
+    if (isPrismaUniqueError) {
+      console.log(
+        `[NOTIFICATION_PROCESSOR] Duplicate notification for job ${job.id} — skipping DB insert`,
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const channel = `notifications:user:${userId}`;
   const payload = JSON.stringify({
@@ -24,9 +47,14 @@ export async function processNotification(job: Job<NotificationJobData>) {
 
   try {
     const subscriberCount = await redis.publish(channel, payload);
-    console.log(`[NOTIFICATION_PROCESSOR] Published to ${channel} (delivered to ${subscriberCount} listeners)`);
+    console.log(
+      `[NOTIFICATION_PROCESSOR] Published to ${channel} (delivered to ${subscriberCount} listeners)`,
+    );
   } catch (error) {
-    console.error(`[NOTIFICATION_PROCESSOR] Failed to publish notification to Redis:`, error);
+    console.error(
+      `[NOTIFICATION_PROCESSOR] Failed to publish notification to Redis:`,
+      error,
+    );
     throw error; // Let BullMQ handle retry
   }
 }
@@ -36,10 +64,14 @@ export const notificationProcessor = new Worker<NotificationJobData>(
   processNotification,
   {
     connection: redis,
-    // Add reasonable retry and concurrency defaults if needed
+    concurrency: 10,
   },
 );
 
 notificationProcessor.on("failed", (job, err) => {
   console.error(`[NOTIFICATION_PROCESSOR] Job ${job?.id} failed:`, err.message);
+});
+
+notificationProcessor.on("completed", (job) => {
+  console.log(`[NOTIFICATION_PROCESSOR] Job ${job.id} completed`);
 });

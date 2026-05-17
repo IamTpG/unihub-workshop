@@ -63,6 +63,22 @@ export class AdminWorkshopsController {
       return next(error);
     }
   }
+
+  async uploadRoomLayout(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        return res.error("Image file is required", [], 400);
+      }
+
+      const id = String(req.params.id);
+      const imageUrl = `${req.protocol}://${req.get("host")}/uploads/room-layouts/${req.file.filename}`;
+      const workshop = await adminWorkshopsService.updateRoomLayoutUrl(id, imageUrl);
+
+      return res.ok("Room layout uploaded successfully", workshop);
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 export const adminWorkshopsController = new AdminWorkshopsController();

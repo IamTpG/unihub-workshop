@@ -1,54 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useWorkshopStore } from '../../stores/workshopStore';
+import { useRegistrationStore } from '../../stores/registrationStore';
 import { Button } from '../../components/ui/Button';
-import { DateRangeSelector } from '../../components/workshop/DateRangeSelector';
 import { WorkshopCard } from '../../components/workshop/WorkshopCard';
-import { useNavigate } from 'react-router-dom';
-
-import { formatDate, getStartOfWeek, getEndOfWeek, formatWeekRange } from '../../utils/date';
 
 const StudentHome: React.FC = () => {
-  const navigate = useNavigate();
   const { workshops, isLoading, error, fetchWorkshops } = useWorkshopStore();
+  const { fetchRegistrations } = useRegistrationStore();
 
   useEffect(() => {
     fetchWorkshops();
-  }, [fetchWorkshops]);
+    fetchRegistrations();
+  }, [fetchWorkshops, fetchRegistrations]);
 
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getStartOfWeek(new Date()));
-
-  const handlePrevWeek = () => {
-    setCurrentWeekStart(prev => new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 7));
-  };
-
-  const handleNextWeek = () => {
-    setCurrentWeekStart(prev => new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 7));
-  };
-
-  // Filter workshops for the current week
-  const weekWorkshops = React.useMemo(() => {
-    const end = getEndOfWeek(currentWeekStart);
-    return workshops.filter((ws) => {
-      const d = new Date(ws.startTime);
-      return d >= currentWeekStart && d <= end;
-    });
-  }, [workshops, currentWeekStart]);
-
-  // Group the dynamic API array into Day Groups for visually segmented rendering
-  const groupedWorkshops = React.useMemo(() => {
-    const map: { [key: string]: typeof workshops } = {};
-    
-    weekWorkshops.forEach((ws) => {
-      const dayKey = formatDate(ws.startTime);
-      if (!map[dayKey]) map[dayKey] = [];
-      map[dayKey].push(ws);
-    });
-
-    return Object.entries(map).map(([date, items]) => ({
-      date,
-      workshops: items,
-    }));
-  }, [weekWorkshops]);
+  const sortedWorkshops = React.useMemo(
+    () => [...workshops].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()),
+    [workshops],
+  );
 
   if (isLoading) {
     return (
@@ -71,52 +39,28 @@ const StudentHome: React.FC = () => {
 
   return (
     <div style={pageContainer}>
-      {/* Date Range Selector Component */}
-      <DateRangeSelector 
-        label={formatWeekRange(currentWeekStart)} 
-        onPrev={handlePrevWeek}
-        onNext={handleNextWeek}
-      />
-
-      {/* Section Title Bar */}
       <div style={headerRowStyle}>
-        <h2 style={headerTitleStyle}>Workshops For You</h2>
-        <span style={headerSubtextStyle}>{weekWorkshops.length} this week</span>
+        <h2 style={headerTitleStyle}>Upcoming Workshops</h2>
+        <span style={headerSubtextStyle}>{sortedWorkshops.length} available</span>
       </div>
 
-      {/* Workshops List Grouped by Day */}
-      {groupedWorkshops.length > 0 ? (
-        <div>
-          {groupedWorkshops.map((group) => (
-            <div key={group.date} style={{ marginBottom: '28px' }}>
-              {/* Day Badge */}
-              <div style={dayBadgeStyle}>{group.date}</div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {group.workshops.map((ws) => (
-                  <WorkshopCard 
-                    key={ws.id} 
-                    workshop={ws} 
-                    onClick={() => navigate(`/workshops/${ws.id}`)} 
-                  />
-                ))}
-              </div>
-            </div>
+      {sortedWorkshops.length > 0 ? (
+        <div style={listStyle}>
+          {sortedWorkshops.map((ws) => (
+            <WorkshopCard key={ws.id} workshop={ws} />
           ))}
         </div>
       ) : (
         <div style={emptyStateStyle}>
-          <h3>No Workshops Found</h3>
-          <p>Check back later for updates and scheduled events.</p>
+          <h3>No Workshops Available</h3>
+          <p>Check back later for upcoming events.</p>
         </div>
       )}
     </div>
   );
 };
 
-/* System-Aware Theme Styling consuming global variables natively */
 const pageContainer: React.CSSProperties = {
-  textAlign: 'left',
   fontFamily: 'var(--sans)',
   paddingTop: '12px',
 };
@@ -125,7 +69,7 @@ const headerRowStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'baseline',
-  marginBottom: '20px',
+  marginBottom: '16px',
 };
 
 const headerTitleStyle: React.CSSProperties = {
@@ -142,16 +86,10 @@ const headerSubtextStyle: React.CSSProperties = {
   fontWeight: 500,
 };
 
-const dayBadgeStyle: React.CSSProperties = {
-  display: 'inline-block',
-  backgroundColor: 'var(--bg)',
-  border: '1px solid var(--border)',
-  color: 'var(--text)',
-  padding: '6px 14px',
-  borderRadius: '999px',
-  fontSize: '13px',
-  fontWeight: 600,
-  marginBottom: '16px',
+const listStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
 };
 
 const statusScreenStyle: React.CSSProperties = {
@@ -186,15 +124,10 @@ const emptyStateStyle: React.CSSProperties = {
   marginTop: '24px',
 };
 
-// Inject dynamic spinner keyframes to index.css dynamically or hardcode here
 if (typeof document !== 'undefined' && !document.getElementById('spinner-styles')) {
   const style = document.createElement('style');
   style.id = 'spinner-styles';
-  style.innerHTML = `
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  `;
+  style.innerHTML = `@keyframes spin { to { transform: rotate(360deg); } }`;
   document.head.appendChild(style);
 }
 

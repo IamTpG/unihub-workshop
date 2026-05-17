@@ -48,8 +48,8 @@ export class WorkshopsRepository {
   }
 
   findDetailById(id: string) {
-    return prisma.workshop.findUnique({
-      where: { id },
+    return prisma.workshop.findFirst({
+      where: { id, status: { in: [WorkshopStatus.PUBLISHED] } },
       select: workshopDetailSelect,
     });
   }

@@ -1,11 +1,24 @@
 import type { Prisma } from "@unihub/db";
 import { NotFoundError } from "../../infra/errors/AppError";
 import { adminWorkshopsRepository } from "./admin-workshops.repository";
+import { redis } from "../../infra/redis/redis";
 import type {
   CreateWorkshopInput,
   ListWorkshopsQuery,
   UpdateWorkshopInput,
 } from "./admin-workshops.schema";
+
+const PUBLISHED_WORKSHOPS_CACHE_KEY = "workshops:published";
+const workshopDetailCacheKey = (id: string) => `workshop:${id}:detail`;
+const workshopSlotKey = (id: string) => `workshop:${id}:slots`;
+
+async function invalidateWorkshopCaches(workshopId?: string) {
+  const keys = [PUBLISHED_WORKSHOPS_CACHE_KEY];
+  if (workshopId) {
+    keys.push(workshopDetailCacheKey(workshopId));
+  }
+  await redis.del(...keys).catch(() => {});
+}
 
 export class AdminWorkshopsService {
   async create(input: CreateWorkshopInput) {
@@ -14,6 +27,8 @@ export class AdminWorkshopsService {
       availableSlots: input.capacity,
     });
 
+    // New workshop changes the published list if it is PUBLISHED.
+    await invalidateWorkshopCaches();
     return workshop;
   }
 
@@ -40,6 +55,30 @@ export class AdminWorkshopsService {
       throw new NotFoundError("Workshop not found");
     }
 
+    // Invalidate list (status/title change) and detail cache.
+    await invalidateWorkshopCaches(id);
+
+    // If the workshop is being cancelled or hidden, also remove the slot key
+    // so stale counters don't mislead future registrations.
+    if (
+      input.status === "CANCELLED" ||
+      input.status === "HIDDEN" ||
+      input.status === "DRAFT"
+    ) {
+      await redis.del(workshopSlotKey(id)).catch(() => {});
+    }
+
+    return workshop;
+  }
+
+  async updateRoomLayoutUrl(id: string, imageUrl: string) {
+    const workshop = await adminWorkshopsRepository.update(id, {
+      roomLayoutUrl: imageUrl,
+    });
+    if (!workshop) {
+      throw new NotFoundError("Workshop not found");
+    }
+    await invalidateWorkshopCaches(id);
     return workshop;
   }
 
@@ -55,6 +94,7 @@ export class AdminWorkshopsService {
       workshop,
       registrationCounts: registrationStats.countsByStatus,
       totalRegistrations: registrationStats.total,
+      checkedInCount: registrationStats.checkedInCount,
     };
   }
 

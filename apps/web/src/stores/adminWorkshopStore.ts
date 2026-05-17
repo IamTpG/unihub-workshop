@@ -36,6 +36,7 @@ export interface WorkshopStats {
   workshop: AdminWorkshop;
   registrationCounts: Record<string, number>;
   totalRegistrations: number;
+  checkedInCount: number;
 }
 
 export interface CreateWorkshopPayload {
@@ -74,6 +75,11 @@ interface AdminWorkshopState {
     file: File,
     onProgress?: (percent: number) => void,
   ) => Promise<{ message: string }>;
+  uploadRoomLayoutImage: (
+    id: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ) => Promise<AdminWorkshop>;
   clearError: () => void;
 }
 
@@ -198,5 +204,28 @@ export const useAdminWorkshopStore = create<AdminWorkshopState>((set) => ({
       const error = getErrorMessage(err, 'Failed to upload workshop PDF.');
       throw new Error(error);
     }
-  }
+  },
+
+  uploadRoomLayoutImage: async (id: string, file: File, onProgress?: (percent: number) => void) => {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await api.post(`/admin/workshops/${id}/room-layout`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          if (!event.total || !onProgress) return;
+          onProgress(Math.round((event.loaded * 100) / event.total));
+        },
+      });
+
+      const workshop = response.data?.data;
+      set({ currentWorkshop: workshop });
+      return workshop;
+    } catch (err) {
+      console.error(`Failed to upload room layout for workshop ${id}:`, err);
+      const error = getErrorMessage(err, 'Failed to upload room layout image.');
+      throw new Error(error);
+    }
+  },
 }));

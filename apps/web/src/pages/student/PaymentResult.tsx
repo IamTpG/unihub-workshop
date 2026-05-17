@@ -37,22 +37,26 @@ const PaymentResult: React.FC = () => {
             </div>
             <h1 style={titleStyle}>Payment Failed</h1>
             <p style={subtitleStyle}>
-              The transaction could not be completed. Your spot is still held temporarily if you'd like to try again.
+              The transaction could not be completed. Your seat reservation has been released — you can register again when you're ready.
             </p>
           </>
         )}
 
         <div style={buttonContainerStyle}>
-          <Button fullWidth onClick={() => navigate('/my-registrations')}>
-            Back to My Registrations
-          </Button>
-          {success && (
-            <div style={{ marginTop: '12px' }}>
-              <Button variant="secondary" fullWidth onClick={() => navigate('/workshops')}>
-                Browse More Workshops
-              </Button>
-            </div>
+          {!success && !timeout && (
+            <Button fullWidth onClick={() => navigate('/workshops')}>
+              Try Again
+            </Button>
           )}
+          <div style={{ marginTop: success || timeout ? '0' : '12px' }}>
+            <Button
+              variant={success || timeout ? 'primary' : 'secondary'}
+              fullWidth
+              onClick={() => navigate(success ? '/workshops' : '/my-registrations')}
+            >
+              {success ? 'Browse More Workshops' : timeout ? 'Back to My Registrations' : 'My Registrations'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

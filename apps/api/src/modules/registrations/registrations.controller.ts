@@ -78,6 +78,23 @@ export class RegistrationsController {
       return next(error);
     }
   }
+
+  async retryPayment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = String(req.params.id);
+      const userId = req.user!.id;
+
+      const result = await registrationsService.retryPayment(id, userId);
+
+      return res.status(202).json({
+        success: true,
+        message: "Payment retry accepted",
+        data: result,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 export const registrationsController = new RegistrationsController();

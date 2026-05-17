@@ -9,6 +9,7 @@ export interface PaginationInput {
 export interface RegistrationStats {
   countsByStatus: Record<RegStatus, number>;
   total: number;
+  checkedInCount: number;
 }
 
 export class AdminWorkshopsRepository {
@@ -76,9 +77,14 @@ export class AdminWorkshopsRepository {
       countsByStatus[row.status] = row._count._all;
     }
 
+    const checkedInCount = await prisma.registration.count({
+      where: { workshopId, checkedInAt: { not: null } },
+    });
+
     return {
       countsByStatus,
       total: groupedCounts.reduce((sum, row) => sum + row._count._all, 0),
+      checkedInCount,
     };
   }
 }

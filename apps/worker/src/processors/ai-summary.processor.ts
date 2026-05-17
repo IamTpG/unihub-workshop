@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile, unlink } from "fs/promises";
 import { Worker, type Job } from "bullmq";
 import { PDFParse } from "pdf-parse";
 import { prisma } from "@unihub/db";
@@ -51,11 +51,21 @@ async function processAiSummary(job: Job<AiSummaryJobData>) {
       `[AI_SUMMARY] Workshop ${workshopId} summary generated (${cleanedText.length} chars)`,
     );
   } catch (error) {
-    console.error(`[AI_SUMMARY] Failed to generate summary for workshop ${workshopId}:`, error);
+    console.error(
+      `[AI_SUMMARY] Failed to generate summary for workshop ${workshopId}:`,
+      error,
+    );
     await prisma.workshop.update({
       where: { id: workshopId },
       data: { aiSummary: null },
     });
+  } finally {
+    // Always clean up the temp file regardless of success or failure.
+    try {
+      await unlink(filePath);
+    } catch {
+      console.warn(`[AI_SUMMARY] Could not delete temp file: ${filePath}`);
+    }
   }
 }
 

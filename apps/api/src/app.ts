@@ -1,3 +1,4 @@
+import path from "path";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -20,6 +21,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(responseWrapper);
+
+// Serve uploaded files (room layouts, etc.) publicly before auth checks.
+// Override Helmet's same-origin CORP so browsers can load images cross-origin.
+app.use(
+  "/uploads",
+  (_req, res, next) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(process.cwd(), "uploads")),
+);
 
 // Require API Key for all incoming requests (Layer 1)
 app.use(checkApiKey);

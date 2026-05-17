@@ -53,6 +53,16 @@ export class CheckinsService {
       };
     }
 
+    if (registration.status !== "PAID") {
+      return {
+        success: false,
+        status: "NOT_CONFIRMED",
+        message: `Registration not confirmed (status: ${registration.status})`,
+        studentName,
+        workshopTitle,
+      };
+    }
+
     if (registration.checkedInAt) {
       return {
         success: true,
@@ -64,20 +74,12 @@ export class CheckinsService {
       };
     }
 
-    if (registration.status !== "PAID") {
-      return {
-        success: false,
-        status: "NOT_CONFIRMED",
-        message: `Registration not confirmed (status: ${registration.status})`,
-        studentName,
-        workshopTitle,
-      };
-    }
-
+    // Atomic: UPDATE WHERE checkedInAt IS NULL — only one concurrent call wins.
     const checkedInAt = new Date();
     const updated = await checkinsRepository.checkInSingle(registration.id, checkedInAt);
 
     if (!updated) {
+      // Another concurrent request won the race; re-fetch to get the actual timestamp.
       const latest = await checkinsRepository.findRegistrationById(registration.id);
       const latestCheckedInAt = latest?.checkedInAt ?? checkedInAt;
       return {
@@ -134,9 +136,9 @@ export class CheckinsService {
 
     const regMap = new Map(registrations.map((r) => [r.id, r]));
 
+    // Classify each incoming item before hitting the DB.
     const validItems: { registrationId: string; checkedInAt?: string | undefined }[] = [];
-    let skippedCount = 0;
-    const syncedIds: string[] = [];
+    const alreadySyncedIds: string[] = []; // checked in before this batch arrived
     const failedIds: string[] = [];
 
     for (const item of items) {
@@ -148,8 +150,8 @@ export class CheckinsService {
       }
 
       if (reg.checkedInAt) {
-        skippedCount++;
-        syncedIds.push(item.registrationId);
+        // Already checked in — idempotent success
+        alreadySyncedIds.push(item.registrationId);
         continue;
       }
 
@@ -159,19 +161,34 @@ export class CheckinsService {
       }
 
       validItems.push(item);
-      syncedIds.push(item.registrationId);
     }
 
-    let processedCount = 0;
+    // The repository uses UPDATE WHERE checkedInAt IS NULL per row inside a
+    // transaction, so concurrent batch requests cannot double-stamp.
+    const processedIds: string[] = [];
+    let skippedCount = 0;
+
     if (validItems.length > 0) {
       const results = await checkinsRepository.checkInBatch(validItems);
-      processedCount = results.filter((r) => r.success).length;
+      for (const r of results) {
+        if (r.success) {
+          processedIds.push(r.registrationId);
+        } else {
+          // Another concurrent request checked in this one between our pre-fetch
+          // and the atomic write — treat as already done (idempotent success).
+          alreadySyncedIds.push(r.registrationId);
+          skippedCount++;
+        }
+      }
     }
 
     return {
-      processedCount,
-      skippedCount,
-      syncedIds,
+      processedCount: processedIds.length,
+      skippedCount:
+        alreadySyncedIds.length -
+        (items.length - validItems.length - failedIds.length) +
+        skippedCount,
+      syncedIds: [...processedIds, ...alreadySyncedIds],
       failedIds,
     };
   }

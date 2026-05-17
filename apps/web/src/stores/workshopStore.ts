@@ -18,22 +18,34 @@ export interface ApiWorkshop {
   registrationCloseAt: string | null;
 }
 
+export interface ApiWorkshopDetail extends ApiWorkshop {
+  description: string | null;
+  roomLayoutUrl: string | null;
+}
+
 interface WorkshopState {
   workshops: ApiWorkshop[];
+  currentWorkshop: ApiWorkshopDetail | null;
   isLoading: boolean;
+  detailLoading: boolean;
   error: string | null;
+  detailError: string | null;
   fetchWorkshops: () => Promise<void>;
+  fetchWorkshopDetail: (id: string) => Promise<void>;
 }
 
 export const useWorkshopStore = create<WorkshopState>((set) => ({
   workshops: [],
+  currentWorkshop: null,
   isLoading: false,
+  detailLoading: false,
   error: null,
+  detailError: null,
+
   fetchWorkshops: async () => {
     set({ isLoading: true, error: null });
     try {
       const response = await api.get('/workshops');
-      // Enforce standard response mapping according to service.listPublished structure
       const items = response.data?.data?.items || [];
       set({ workshops: items, isLoading: false });
     } catch (err) {
@@ -41,10 +53,20 @@ export const useWorkshopStore = create<WorkshopState>((set) => ({
       const message = axios.isAxiosError(err)
         ? err.response?.data?.message
         : 'Unable to connect to workshop server.';
-      set({
-        error: message || 'Unable to connect to workshop server.',
-        isLoading: false,
-      });
+      set({ error: message || 'Unable to connect to workshop server.', isLoading: false });
+    }
+  },
+
+  fetchWorkshopDetail: async (id) => {
+    set({ detailLoading: true, detailError: null, currentWorkshop: null });
+    try {
+      const response = await api.get<{ success: boolean; data: ApiWorkshopDetail }>(`/workshops/${id}`);
+      set({ currentWorkshop: response.data.data, detailLoading: false });
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message
+        : 'Failed to load workshop details.';
+      set({ detailError: message || 'Failed to load workshop details.', detailLoading: false });
     }
   },
 }));

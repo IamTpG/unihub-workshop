@@ -12,42 +12,58 @@ const workshopSlotKey = (id: string) => `workshop:${id}:slots`;
 async function processPaymentTimeout(job: Job<PaymentTimeoutJobData>) {
   const { registrationId, workshopId } = job.data;
 
-  console.log(`[PAYMENT_TIMEOUT_PROCESSOR] Processing timeout for registration ${registrationId}`);
+  console.log(
+    `[PAYMENT_TIMEOUT_PROCESSOR] Processing timeout for registration ${registrationId}`,
+  );
 
-  const registration = await prisma.registration.findUnique({
-    where: { id: registrationId },
-    select: { status: true, userId: true },
+  // Atomic conditional update: only transition HOLDING → EXPIRED.
+  // If the webhook handler already moved the registration to PAID/FAILED/EXPIRED,
+  // updateMany returns count=0 and we skip all side effects — preventing
+  // double slot release and duplicate expiry notifications.
+  const result = await prisma.registration.updateMany({
+    where: { id: registrationId, status: RegStatus.HOLDING },
+    data: { status: RegStatus.EXPIRED },
   });
 
-  if (!registration || registration.status !== RegStatus.HOLDING) {
+  if (result.count === 0) {
+    const current = await prisma.registration.findUnique({
+      where: { id: registrationId },
+      select: { status: true },
+    });
     console.log(
-      `[PAYMENT_TIMEOUT_PROCESSOR] Registration ${registrationId} is ${registration?.status ?? "not found"} — no action`,
+      `[PAYMENT_TIMEOUT_PROCESSOR] Registration ${registrationId} is already ${current?.status ?? "not found"} — no action`,
     );
     return;
   }
 
-  await prisma.$transaction([
-    prisma.registration.update({
-      where: { id: registrationId },
-      data: { status: RegStatus.EXPIRED },
-    }),
-    prisma.workshop.update({
-      where: { id: workshopId },
-      data: { availableSlots: { increment: 1 } },
-    }),
-  ]);
+  // Release the DB slot and Redis counter together.
+  // These two operations are not atomic across Redis and Postgres.
+  // If the process crashes between them the slot counters diverge; the
+  // nightly slot-reconciliation job (seedAllWorkshopSlots on worker restart)
+  // will re-sync Redis from the DB on the next restart.
+  await prisma.workshop.update({
+    where: { id: workshopId },
+    data: { availableSlots: { increment: 1 } },
+  });
 
   await redis.incr(workshopSlotKey(workshopId));
 
-  const notifData: NotificationJobData = {
-    userId: registration.userId,
-    workshopId,
-    registrationId,
-    type: "REGISTRATION_EXPIRED",
-    title: "Reservation Expired",
-    body: "Your seat reservation has expired. Please register again.",
-  };
-  await notificationQueue.add("notify", notifData);
+  const registration = await prisma.registration.findUnique({
+    where: { id: registrationId },
+    select: { userId: true },
+  });
+
+  if (registration) {
+    const notifData: NotificationJobData = {
+      userId: registration.userId,
+      workshopId,
+      registrationId,
+      type: "REGISTRATION_EXPIRED",
+      title: "Reservation Expired",
+      body: "Your seat reservation has expired. Please register again.",
+    };
+    await notificationQueue.add("notify", notifData);
+  }
 
   console.log(
     `[PAYMENT_TIMEOUT_PROCESSOR] Registration ${registrationId} EXPIRED, seat released for workshop ${workshopId}`,

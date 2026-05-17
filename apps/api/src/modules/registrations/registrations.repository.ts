@@ -21,7 +21,12 @@ export class RegistrationsRepository {
   findByIntentId(paymentRef: string) {
     return prisma.registration.findFirst({
       where: { paymentRef },
-      include: { workshop: { select: { id: true, price: true } } },
+      include: {
+        workshop: {
+          select: { id: true, title: true, startTime: true, location: true, price: true },
+        },
+        user: { select: { email: true, fullName: true } },
+      },
     });
   }
 

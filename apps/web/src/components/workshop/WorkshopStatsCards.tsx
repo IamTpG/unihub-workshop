@@ -6,6 +6,7 @@ interface WorkshopStatsCardsProps {
   capacity: number;
   availableSlots: number;
   registrationCounts: Record<string, number>;
+  checkedInCount?: number;
 }
 
 const getStatusColor = (status: string): string => {
@@ -21,6 +22,7 @@ export const WorkshopStatsCards: React.FC<WorkshopStatsCardsProps> = ({
   capacity,
   availableSlots,
   registrationCounts,
+  checkedInCount,
 }) => {
   return (
     <div style={statsGridStyle}>
@@ -28,13 +30,20 @@ export const WorkshopStatsCards: React.FC<WorkshopStatsCardsProps> = ({
         <div style={statLabelStyle}>Total Registrations</div>
         <div style={statValueStyle}>{totalRegistrations}</div>
       </Card>
-      
+
       <Card maxWidth="100%" style={statCardStyle}>
         <div style={statLabelStyle}>Seats Filled</div>
         <div style={statValueStyle}>
           {capacity - availableSlots} / {capacity}
         </div>
       </Card>
+
+      {checkedInCount !== undefined && (
+        <Card maxWidth="100%" style={statCardStyle}>
+          <div style={statLabelStyle}>Checked In</div>
+          <div style={{ ...statValueStyle, color: 'var(--success)' }}>{checkedInCount}</div>
+        </Card>
+      )}
 
       {Object.entries(registrationCounts).map(([status, count]) => (
         <Card key={status} maxWidth="100%" style={statCardStyle}>

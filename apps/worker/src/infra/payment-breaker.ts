@@ -1,11 +1,20 @@
 import { createCircuitBreaker } from "./circuit-breaker.js";
 import { getPaymentProvider } from "./payment/payment-provider.factory.js";
+import { requireEnv } from "../env.js";
 
-const provider = getPaymentProvider("mock");
+const providerName = process.env.PAYMENT_PROVIDER ?? "mock";
+
+if (process.env.NODE_ENV === "production" && providerName === "mock") {
+  throw new Error(
+    "PAYMENT_PROVIDER=mock is not allowed in production. Set PAYMENT_PROVIDER to a real provider.",
+  );
+}
+
+const provider = getPaymentProvider(providerName);
 
 /**
  * Circuit Breaker for Payment Provider
- * Wraps createIntent to isolate failures
+ * Wraps createIntent to isolate failures from the rest of the registration flow.
  */
 export const paymentBreaker = createCircuitBreaker(
   async (amount: number, currency: string, metadata: Record<string, string>) => {
@@ -13,7 +22,6 @@ export const paymentBreaker = createCircuitBreaker(
   },
 );
 
-// Event Logging (Task 2.5)
 paymentBreaker.on("open", () => {
   console.warn("⚠️ [CIRCUIT_BREAKER] Payment Circuit OPENED - failing fast");
 });
@@ -26,9 +34,7 @@ paymentBreaker.on("close", () => {
   console.info("✅ [CIRCUIT_BREAKER] Payment Circuit CLOSED - gateway healthy");
 });
 
-// Fallback behavior (Task 2.3)
 paymentBreaker.fallback(() => {
   console.error("🚨 [CIRCUIT_BREAKER] Payment fallback triggered (Circuit OPEN or Timeout)");
-  // Return undefined intentId to trigger existing retry logic in processor
   return { intentId: undefined, clientSecret: undefined } as any;
 });

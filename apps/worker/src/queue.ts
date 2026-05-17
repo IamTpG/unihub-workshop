@@ -2,12 +2,14 @@ import IORedis from "ioredis";
 import { Queue } from "bullmq";
 import {
   EMAIL_OTP_QUEUE_NAME,
+  REGISTRATION_EMAIL_QUEUE_NAME,
   REGISTRATION_QUEUE_NAME,
   PAYMENT_TIMEOUT_QUEUE_NAME,
   NOTIFICATION_QUEUE_NAME,
   AI_SUMMARY_QUEUE_NAME,
   STUDENT_IMPORT_QUEUE_NAME,
   type OtpEmailJobData,
+  type RegistrationConfirmedEmailJobData,
   type RegistrationJobData,
   type PaymentTimeoutJobData,
   type NotificationJobData,
@@ -33,6 +35,11 @@ export const emailOtpQueue = new Queue<OtpEmailJobData>(EMAIL_OTP_QUEUE_NAME, {
   connection: redis,
   defaultJobOptions,
 });
+
+export const registrationEmailQueue = new Queue<RegistrationConfirmedEmailJobData>(
+  REGISTRATION_EMAIL_QUEUE_NAME,
+  { connection: redis, defaultJobOptions },
+);
 
 export const registrationQueue = new Queue<RegistrationJobData>(REGISTRATION_QUEUE_NAME, {
   connection: redis,

@@ -1,9 +1,14 @@
 import type { Request, Response } from "express";
+import { prisma } from "@unihub/db";
 import { redis } from "../../infra/redis/redis.js";
 
 /**
  * SSE Notification Stream Handler
- * Streams real-time notifications to the client using Redis Pub/Sub.
+ *
+ * Supports the standard `Last-Event-ID` header for reconnect replay: when the
+ * browser reconnects after a disconnect, it sends the ID of the last event it
+ * received and we immediately flush all notifications created after that point
+ * before resuming the live Redis Pub/Sub stream.
  */
 export const streamNotifications = async (req: Request, res: Response) => {
   const userId = req.user?.id;
@@ -18,11 +23,46 @@ export const streamNotifications = async (req: Request, res: Response) => {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no"); // Disable buffering in Nginx if present
 
-  // Send initial connected event or comment
   res.write(": connected\n\n");
+
   const channel = `notifications:user:${userId}`;
 
-  // Use a dedicated redis client for subscription
+  // -------------------------------------------------------------------------
+  // Replay missed notifications (Last-Event-ID reconnect support)
+  // -------------------------------------------------------------------------
+  const lastEventId =
+    req.header("last-event-id") ?? (req.query.lastEventId as string | undefined);
+  if (lastEventId) {
+    try {
+      const missed = await prisma.notification.findMany({
+        where: {
+          userId,
+          id: { gt: lastEventId },
+        },
+        orderBy: { createdAt: "asc" },
+        take: 50,
+      });
+
+      for (const notif of missed) {
+        const payload = JSON.stringify({
+          type: notif.type,
+          title: notif.title,
+          body: notif.body,
+          timestamp: notif.createdAt.toISOString(),
+        });
+        res.write(`id: ${notif.id}\ndata: ${payload}\n\n`);
+      }
+    } catch (err) {
+      console.error(
+        `[SSE] Failed to replay missed notifications for user ${userId}:`,
+        err,
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Live stream via Redis Pub/Sub
+  // -------------------------------------------------------------------------
   const subscriber = redis.duplicate();
 
   try {
@@ -31,16 +71,21 @@ export const streamNotifications = async (req: Request, res: Response) => {
 
     subscriber.on("message", (ch, message) => {
       if (ch === channel) {
-        res.write(`data: ${message}\n\n`);
+        try {
+          const data = JSON.parse(message) as { id?: string };
+          const eventId = data.id ?? "";
+          res.write(`${eventId ? `id: ${eventId}\n` : ""}data: ${message}\n\n`);
+        } catch {
+          res.write(`data: ${message}\n\n`);
+        }
       }
     });
 
-    // Keepalive interval (30 seconds) to prevent connection timeout
+    // Keepalive interval to prevent connection timeout
     const keepAlive = setInterval(() => {
       res.write(": keepalive\n\n");
     }, 30000);
 
-    // Cleanup on close
     res.on("close", async () => {
       console.log(`[SSE] User ${userId} connection closed`);
       clearInterval(keepAlive);

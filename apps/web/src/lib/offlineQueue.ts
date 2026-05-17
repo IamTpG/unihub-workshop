@@ -6,6 +6,8 @@ export interface OfflineCheckInQueueItem {
   workshopId: string;
   workshopTitle: string;
   localTimestamp: string;
+  /** ISO string after which this item is stale and will be auto-pruned on load. */
+  expiresAt: string;
   syncStatus: OfflineCheckInSyncStatus;
   failureReason?: string;
   retryCount: number;
@@ -13,6 +15,9 @@ export interface OfflineCheckInQueueItem {
 
 export const OFFLINE_CHECKIN_QUEUE_KEY = 'unihub:checkin-queue';
 export const OFFLINE_CHECKIN_QUEUE_EVENT = 'unihub:checkin-queue-updated';
+
+/** Items older than this many hours are pruned automatically. */
+const ITEM_TTL_HOURS = 48;
 
 const canUseStorage = () =>
   typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -28,6 +33,11 @@ const persist = (items: OfflineCheckInQueueItem[]) => {
   notifyQueueChanged();
 };
 
+const isExpired = (item: OfflineCheckInQueueItem): boolean => {
+  if (!item.expiresAt) return false;
+  return Date.now() > new Date(item.expiresAt).getTime();
+};
+
 export const getAll = (): OfflineCheckInQueueItem[] => {
   if (!canUseStorage()) return [];
 
@@ -41,7 +51,15 @@ export const getAll = (): OfflineCheckInQueueItem[] => {
       return [];
     }
 
-    return parsed.filter(isQueueItem);
+    const valid = parsed.filter(isQueueItem);
+    const nonExpired = valid.filter((item) => !isExpired(item));
+
+    // Prune expired items from storage.
+    if (nonExpired.length !== valid.length) {
+      persist(nonExpired);
+    }
+
+    return nonExpired;
   } catch {
     persist([]);
     return [];
@@ -73,15 +91,29 @@ export const createQueueItem = (input: {
   qrToken: string;
   workshopId: string;
   workshopTitle: string;
-}): OfflineCheckInQueueItem => ({
-  id: createId(),
-  qrToken: input.qrToken,
-  workshopId: input.workshopId,
-  workshopTitle: input.workshopTitle,
-  localTimestamp: new Date().toISOString(),
-  syncStatus: 'pending',
-  retryCount: 0,
-});
+  /** ISO string of the workshop end time; defaults to 48h from now if omitted. */
+  workshopEndTime?: string;
+}): OfflineCheckInQueueItem => {
+  const expiresAt = input.workshopEndTime
+    ? new Date(
+        Math.max(
+          new Date(input.workshopEndTime).getTime(),
+          Date.now() + ITEM_TTL_HOURS * 60 * 60 * 1000,
+        ),
+      ).toISOString()
+    : new Date(Date.now() + ITEM_TTL_HOURS * 60 * 60 * 1000).toISOString();
+
+  return {
+    id: createId(),
+    qrToken: input.qrToken,
+    workshopId: input.workshopId,
+    workshopTitle: input.workshopTitle,
+    localTimestamp: new Date().toISOString(),
+    expiresAt,
+    syncStatus: 'pending',
+    retryCount: 0,
+  };
+};
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {

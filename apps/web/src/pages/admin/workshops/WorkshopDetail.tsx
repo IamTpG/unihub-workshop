@@ -23,11 +23,15 @@ export const WorkshopDetail: React.FC = () => {
     error,
     fetchWorkshopStats,
     uploadWorkshopPdf,
+    uploadRoomLayoutImage,
     clearError,
   } = useAdminWorkshopStore();
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imageUploadProgress, setImageUploadProgress] = useState<number | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -88,6 +92,23 @@ export const WorkshopDetail: React.FC = () => {
     }
   };
 
+  const handleImageUpload = async () => {
+    if (!id || !selectedImage) return;
+
+    setImageUploadError(null);
+    setImageUploadProgress(0);
+
+    try {
+      await uploadRoomLayoutImage(id, selectedImage, setImageUploadProgress);
+      setSelectedImage(null);
+      setImageUploadProgress(null);
+      await fetchWorkshopStats(id);
+    } catch (err) {
+      setImageUploadProgress(null);
+      setImageUploadError(err instanceof Error ? err.message : 'Failed to upload image.');
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -97,11 +118,12 @@ export const WorkshopDetail: React.FC = () => {
       />
 
       {/* 1. Stats Grid Header Section */}
-      <WorkshopStatsCards 
+      <WorkshopStatsCards
         totalRegistrations={workshopStats?.totalRegistrations || 0}
         capacity={currentWorkshop.capacity}
         availableSlots={currentWorkshop.availableSlots}
         registrationCounts={workshopStats?.registrationCounts || {}}
+        checkedInCount={workshopStats?.checkedInCount}
       />
 
       {/* 2. Main Flex/Grid Details Layout */}
@@ -112,6 +134,55 @@ export const WorkshopDetail: React.FC = () => {
             roomLayoutUrl={currentWorkshop.roomLayoutUrl}
             pdfUrl={currentWorkshop.pdfUrl}
           />
+
+          {/* Room Layout Image Upload */}
+          <section style={summaryPanelStyle}>
+            <div style={panelHeaderStyle}>Room Layout Image</div>
+
+            {currentWorkshop.roomLayoutUrl && (
+              <p style={panelTextStyle}>
+                Current:{' '}
+                <a
+                  href={currentWorkshop.roomLayoutUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: 'var(--accent)', fontSize: '13px' }}
+                >
+                  View image
+                </a>
+              </p>
+            )}
+
+            {!currentWorkshop.roomLayoutUrl && (
+              <p style={panelTextStyle}>No room layout uploaded yet.</p>
+            )}
+
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => setSelectedImage(e.target.files?.[0] ?? null)}
+              style={fileInputStyle}
+            />
+
+            {imageUploadProgress !== null && (
+              <div style={progressTrackStyle}>
+                <div style={{ ...progressBarStyle, width: `${imageUploadProgress}%` }} />
+              </div>
+            )}
+
+            {imageUploadError && <Alert message={imageUploadError} variant="error" />}
+
+            <Button
+              onClick={handleImageUpload}
+              disabled={!selectedImage || imageUploadProgress !== null}
+              loading={imageUploadProgress !== null}
+              loadingText="Uploading..."
+              style={{ marginTop: '12px' }}
+            >
+              {currentWorkshop.roomLayoutUrl ? 'Replace Image' : 'Upload Room Layout'}
+            </Button>
+          </section>
+
           <section style={summaryPanelStyle}>
             <div style={panelHeaderStyle}>PDF & AI Summary</div>
 

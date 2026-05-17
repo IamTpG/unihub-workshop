@@ -64,6 +64,33 @@ export class RegistrationsService {
       }
     }
 
+    // Guard against duplicate registrations before touching Redis.
+    // The DB has @@unique([userId, workshopId]) — a second create in the worker
+    // would throw P2002, leaving the Redis slot decremented with no compensation.
+    const existingReg = await prisma.registration.findFirst({
+      where: { userId, workshopId },
+      select: { id: true, status: true },
+    });
+    if (existingReg) {
+      const isTerminal =
+        existingReg.status === RegStatus.FAILED ||
+        existingReg.status === RegStatus.EXPIRED;
+
+      if (isTerminal) {
+        // The payment failed or timed out — the slot was already restored by
+        // the webhook / timeout processor. Delete the stale record so the
+        // student can claim a new seat as if registering for the first time.
+        await prisma.registration.delete({ where: { id: existingReg.id } });
+        // Fall through to the normal registration path below.
+      } else {
+        throw new BadRequestError(
+          existingReg.status === RegStatus.PAID
+            ? "You are already registered for this workshop"
+            : "You already have a pending reservation for this workshop",
+        );
+      }
+    }
+
     const slotKey = workshopSlotKey(workshopId);
 
     // Seed slot counter if not yet in Redis (idempotent NX)
@@ -76,13 +103,19 @@ export class RegistrationsService {
       throw new BadRequestError("Workshop Full");
     }
 
-    const job = await registrationQueue.add("register", {
-      userId,
-      workshopId,
-      idempotencyKey,
-    });
-
-    return { jobId: job.id };
+    // Compensate the Redis decrement if enqueue fails — otherwise the slot
+    // count would be permanently lost until the next worker restart.
+    try {
+      const job = await registrationQueue.add("register", {
+        userId,
+        workshopId,
+        idempotencyKey,
+      });
+      return { jobId: job.id };
+    } catch (err) {
+      await redis.incr(slotKey);
+      throw err;
+    }
   }
 
   async getUserRegistrations(userId: string, statuses?: RegStatus[]) {
@@ -91,6 +124,25 @@ export class RegistrationsService {
 
   async getRegistrationDetails(id: string, userId: string) {
     return registrationsRepository.findOneByUser(id, userId);
+  }
+
+  async retryPayment(registrationId: string, userId: string) {
+    const registration = await registrationsRepository.findById(registrationId);
+    if (!registration || registration.userId !== userId) {
+      throw new NotFoundError("Registration not found");
+    }
+    if (registration.status !== RegStatus.HOLDING || registration.paymentRef !== null) {
+      throw new BadRequestError("This registration is not eligible for payment retry");
+    }
+    // Re-enqueue the job so the processor creates a new payment intent.
+    // The processor handles P2002 idempotently: it finds the existing
+    // registration and skips to Stage 2 (payment intent creation).
+    const job = await registrationQueue.add("register", {
+      userId,
+      workshopId: registration.workshopId,
+      idempotencyKey: registration.idempotencyKey,
+    });
+    return { jobId: job.id };
   }
 
   async seedSlots(workshopId: string, availableSlots: number) {
