@@ -18,74 +18,147 @@
 ## C4 Diagrams
 
 ### Level 1 — System Context
+*This diagram shows UniHub in the center and the external entities it interacts with.*
 
 ```mermaid
 C4Context
-  title System Context — UniHub Workshop
+    title System Context — UniHub Workshop
 
-  Person(student, "Student", "Registers for workshops")
-  Person(admin, "Admin", "Manages workshops and roster")
-  Person(staff, "Staff", "Checks in attendees")
+    Person(student, "Student", "Registers and pays for workshops.")
+    Person(admin, "Admin", "Manages workshops, roster, and PDF uploads.")
+    Person(staff, "Staff", "Checks in attendees via QR scan.")
 
-  System(unihub, "UniHub Workshop", "Workshop registration and check-in platform")
+    System_Ext(email, "Email (SMTP)", "OTP delivery and registration confirmation.")
+    System_Ext(payment, "Payment Provider", "Mock in MVP; real gateway later.")
+    System_Ext(sis, "Student Information System", "Source of truth for student roster; no API, CSV export only.")
+    System_Ext(ai, "AI Provider", "Generates workshop summaries from PDF content.")
 
-  System_Ext(email, "Email (SMTP)", "OTP delivery")
-  System_Ext(payment, "Payment Provider", "Mock in MVP; real gateway later")
+    System_Boundary(unihub_boundary, "UniHub Workshop Platform") {
+        System(unihub, "UniHub Workshop", "Workshop registration, payment, and check-in platform.")
+    }
 
-  Rel(student, unihub, "Uses web app")
-  Rel(admin, unihub, "Uses admin UI")
-  Rel(staff, unihub, "Uses staff mobile UI")
-  Rel(unihub, email, "Sends OTP")
-  Rel(unihub, payment, "Creates intents, receives webhooks")
+    Rel(student, unihub, "Uses web app", "HTTPS")
+    Rel(admin, unihub, "Uses admin UI", "HTTPS")
+    Rel(staff, unihub, "Uses staff mobile UI", "HTTPS")
+    Rel(unihub, email, "Sends OTP and registration emails", "SMTP")
+    Rel(unihub, payment, "Creates intents, receives webhooks", "HTTPS")
+    Rel(sis, unihub, "Provides student roster", "CSV file")
+    Rel(unihub, ai, "Sends extracted PDF text, receives summary", "HTTPS")
 ```
 
 
 
 ### Level 2 — Containers
-
+*This diagram breaks down the UniHub system into its deployable containers.*
 ```mermaid
 C4Container
-  title Containers — UniHub Workshop
+    title Container Diagram — UniHub Workshop
 
-  Person(user, "User")
+    Person(student, "Student", "Registers and pays for workshops.")
+    Person(admin, "Admin", "Manages workshops, roster, and PDF uploads.")
+    Person(staff, "Staff", "Checks in attendees via QR scan.")
 
-  Container(web, "Web App", "React, Vite", "Student / Admin / Staff UI")
-  Container(api, "API", "Express", "REST, SSE, webhooks")
-  Container(worker, "Worker", "Node + BullMQ", "Background jobs")
-  ContainerDb(db, "PostgreSQL", "Neon", "System of record")
-  ContainerDb(redis, "Redis", "", "Cache, counters, limits, pub/sub")
-  Container(fs, "Local uploads", "Filesystem", "PDF files (demo)")
+    System_Ext(email, "Email (SMTP)", "OTP delivery and registration confirmation.")
+    System_Ext(payment, "Payment Provider", "Mock in MVP; real gateway later.")
+    System_Ext(sis, "Student Information System", "Provides student roster via CSV.")
+    System_Ext(ai, "AI Provider", "Generates workshop summaries from PDF content.")
 
-  Rel(user, web, "HTTPS")
-  Rel(web, api, "JSON /api/v1, SSE")
-  Rel(api, db, "Prisma")
-  Rel(api, redis, "Cache/counters")
-  Rel(api, worker, "Enqueue jobs")
-  Rel(worker, db, "Prisma")
-  Rel(worker, redis, "Pub/sub, counters")
-  Rel(api, fs, "Store PDFs")
-  Rel(worker, fs, "Read PDFs for summary")
+    System_Boundary(unihub_boundary, "UniHub Workshop Platform") {
+        Container(web, "Web Application", "React, Vite", "Student, Admin, and Staff UI. Supports offline check-in queue via browser storage.")
+        Container(api, "Core API", "Node.js / Express", "REST endpoints, SSE notifications, webhook handlers, RBAC middleware.")
+        Container(worker, "Background Worker", "Node.js / BullMQ", "Processes registration, payment timeout, email, notification, AI summary, and student import jobs.")
+        ContainerDb(db, "Primary Database", "PostgreSQL (Neon)", "System of record for users, workshops, registrations, and roster.")
+        ContainerDb(redis, "Cache & Queue", "Redis", "Seat counters, list cache, rate limits, idempotency, pub/sub for SSE.")
+        Container(fs, "Local File Storage", "Filesystem", "Uploaded PDFs and room layout images.")
+    }
+
+    %% User interactions
+    Rel(student, web, "Uses", "HTTPS")
+    Rel(admin, web, "Uses", "HTTPS")
+    Rel(staff, web, "Uses", "HTTPS")
+
+    %% Internal container relationships
+    Rel(web, api, "Makes API calls to", "JSON/HTTPS")
+    Rel(api, db, "Reads/Writes data", "Prisma/TCP")
+    Rel(api, redis, "Checks capacity, rate limits, caches", "TCP")
+    Rel(api, worker, "Enqueues background jobs", "BullMQ/Redis")
+    Rel(api, fs, "Stores uploaded files", "Filesystem")
+
+    %% Worker relationships
+    Rel(worker, db, "Updates async state", "Prisma/TCP")
+    Rel(worker, redis, "Pub/sub, counters, cache invalidation", "TCP")
+    Rel(worker, fs, "Reads PDFs for summary", "Filesystem")
+
+    %% External system relationships
+    Rel(worker, email, "Sends OTP and registration emails", "SMTP")
+    Rel(worker, payment, "Creates payment intents", "HTTPS")
+    Rel(api, payment, "Receives webhooks from", "HTTPS")
+    Rel(worker, ai, "Sends PDF text for summary", "HTTPS")
+    Rel(sis, worker, "Provides student roster", "CSV file")
 ```
 
 
 
 ## High-Level Architecture
 
-```text
-┌─────────────┐     Bearer JWT + cookies      ┌──────────────────────────────────────┐
-│  Frontend   │ ───────────────────────────►  │           Backend (Express)          │
-│  React/Vite │     SSE /notifications/stream │    middleware → modules → infra      │
-└─────────────┘                               └───────────┬──────────────────────────┘
-       │ localStorage                                      │ enqueue
-       │ (offline check-in)                                ▼
-       │                                         ┌─────────────────┐
-       └──────── POST /check-ins/batch ────────► │  Workers        │
-                                                 │  BullMQ workers │
-                                                 └────────┬────────┘
-                                                          │
-                    ┌─────────────────────────────────────┼─────────────────────┐
-                    ▼                     ▼               ▼                     ▼
-              PostgreSQL              Redis          SMTP (OTP)          Mock payment
+*This diagram shows data flow and dependencies between components, highlighting integration points and the offline check-in flow.*
+
+```mermaid
+flowchart TB
+    subgraph Users["Users"]
+        student["Student"]
+        admin["Admin"]
+        staff["Staff"]
+    end
+
+    subgraph Platform["UniHub Workshop Platform"]
+        web["Web App<br/>(React / Vite)"]
+        api["Core API<br/>(Express)"]
+        worker["Background Worker<br/>(BullMQ)"]
+        db[("PostgreSQL")]
+        redis[("Redis")]
+        fs["File Storage"]
+    end
+
+    subgraph External["External Systems"]
+        email["Email (SMTP)"]
+        payment["Payment Provider"]
+        sis["Student Information<br/>System (CSV)"]
+        ai["AI Provider"]
+    end
+
+    %% User → Web App
+    student -- "HTTPS" --> web
+    admin -- "HTTPS" --> web
+    staff -- "HTTPS" --> web
+
+    %% Web App → API
+    web -- "REST API (JSON)" --> api
+    api -- "SSE notifications" --> web
+
+    %% Offline check-in flow
+    staff -. "Scans QR while offline<br/>(queued in browser storage)" .-> web
+    web -- "POST /check-ins/batch<br/>(sync when online)" --> api
+
+    %% API internal
+    api -- "Read/Write" --> db
+    api -- "Cache, rate limit,<br/>seat counters, idempotency" --> redis
+    api -- "Store PDFs &<br/>room layouts" --> fs
+    api -- "Enqueue jobs" --> worker
+    api -- "Receive webhooks" --> payment
+
+    %% Worker internal
+    worker -- "Update async state" --> db
+    worker -- "Pub/sub, counters,<br/>cache invalidation" --> redis
+    worker -- "Read PDFs" --> fs
+
+    %% Worker → External integrations
+    worker -- "Send OTP &<br/>registration emails" --> email
+    worker -- "Create payment<br/>intents" --> payment
+    worker -- "Send PDF text,<br/>receive summary" --> ai
+
+    %% SIS → Worker (nightly cron)
+    sis -. "Nightly CSV import<br/>(cron 02:00)" .-> worker
 ```
 
 ### Critical flow: Registration (happy path)
