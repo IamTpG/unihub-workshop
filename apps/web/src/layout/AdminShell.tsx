@@ -36,6 +36,7 @@ export const AdminShell: React.FC = () => {
         <nav style={navStyle}>
           <Link to="/admin" style={getLinkStyle('/admin')}>Dashboard</Link>
           <Link to="/admin/workshops" style={getLinkStyle('/admin/workshops')}>Manage Workshops</Link>
+          <Link to="/admin/students/import" style={getLinkStyle('/admin/students')}>Student Import</Link>
         </nav>
       </aside>
       <div style={mainAreaStyle}>

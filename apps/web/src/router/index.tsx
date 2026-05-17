@@ -18,6 +18,9 @@ import { WorkshopCreate as AdminWorkshopCreate } from '../pages/admin/workshops/
 import { WorkshopDetail as AdminWorkshopDetail } from '../pages/admin/workshops/WorkshopDetail';
 import { WorkshopEdit as AdminWorkshopEdit } from '../pages/admin/workshops/WorkshopEdit';
 
+// Admin Student Import
+import StudentImport from '../pages/admin/students/StudentImport';
+
 import MyRegistrations from '../pages/student/MyRegistrations';
 import TicketQR from '../pages/student/TicketQR';
 import PaymentDetails from '../pages/student/PaymentDetails';
@@ -71,6 +74,10 @@ export const router = createBrowserRouter([
       {
         path: 'workshops/:id/edit',
         element: <AdminWorkshopEdit />,
+      },
+      {
+        path: 'students/import',
+        element: <StudentImport />,
       },
     ],
   },

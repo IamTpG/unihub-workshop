@@ -9,12 +9,14 @@ const REQUIRED_HEADERS = ["studentId", "email", "fullName"];
 async function readFirstLine(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const rl = createInterface({
-      input: createReadStream(filePath),
+      input: createReadStream(filePath, { encoding: "utf8" }),
       crlfDelay: Infinity,
     });
     rl.once("line", (line) => {
+      // resolve BEFORE close — rl.close() emits "close" synchronously, which would
+      // call resolve("") and win the race if we closed first.
+      resolve(line.replace(/^\uFEFF/, "")); // strip UTF-8 BOM added by Excel/Windows editors
       rl.close();
-      resolve(line);
     });
     rl.once("error", reject);
     rl.once("close", () => resolve(""));
@@ -22,7 +24,12 @@ async function readFirstLine(filePath: string): Promise<string> {
 }
 
 function validateCsvHeaders(headerLine: string): string[] {
-  const headers = headerLine.split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+  const headers = headerLine.split(",").map((h) =>
+    h
+      .trim()
+      .replace(/^"|"$/g, "")
+      .replace(/^\uFEFF/, ""),
+  );
   return REQUIRED_HEADERS.filter((required) => !headers.includes(required));
 }
 

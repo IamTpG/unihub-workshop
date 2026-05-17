@@ -1,0 +1,10 @@
+studentId,email,fullName,status
+23000001,alice@example.com,Alice Johnson,ACTIVE
+23000002,bob@example.com,Bob Smith,ACTIVE
+23000003,charlie@example.com,Charlie Brown,ACTIVE
+23000004,diana@example.com,Diana Prince,INACTIVE
+23000002,bobby@example.com,Bobby Smith Updated,ACTIVE
+,noid@example.com,No Student ID Row,ACTIVE
+23000005,not-a-valid-email,Eve Wilson,ACTIVE
+23000006,,Frank Miller,ACTIVE
+23000007,grace@example.com,,ACTIVE
