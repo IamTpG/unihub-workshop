@@ -1,14 +1,16 @@
 # Specification: Authentication & Authorization
 
 ## Description
-This feature provides identity verification and role-based access control (RBAC) for all UniHub Workshop users. The system uses **stateless JSON Web Tokens (JWT)** for authentication and enforces three distinct permission levels — `STUDENT`, `ADMIN`, and `STAFF` — via an Authorization Middleware at the API routing layer.
+This feature provides identity verification, role-based access control (RBAC), and client-side session management for all UniHub Workshop users. The system uses **stateless JSON Web Tokens (JWT)** for authentication, enforces three distinct permission levels — `STUDENT`, `ADMIN`, and `STAFF` — via API Authorization Middleware, and manages client-side routing and layout shells based on user roles.
 
 Key capabilities:
 - **OTP-based passwordless login** using a username (student ID for students, assigned username for staff/admin) and a hashed 6-digit pin sent to the user's registered email.
 - **JWT access + refresh token pair** with **Refresh Token Rotation** — access tokens are short-lived (15 min), refresh tokens are long-lived (7 days) and rotated on every use to limit the blast radius of a leaked token.
-- **Offline token caching** on the React Native mobile app, allowing staff to remain authenticated in zero-connectivity environments.
+- **Offline-resilient staff check-in** — the web app caches the access token so staff can continue scanning QR codes during brief network outages.
 - **Role-based endpoint protection** enforced at the API Gateway / middleware level.
+- **Client-side route guarding** and **role-aware layout shells** (AdminShell, MobileShell) for authenticated navigation.
 
+---
 ## Main Flow
 
 ### 1. Login (OTP Flow)
@@ -22,7 +24,7 @@ Key capabilities:
    - `expires_at` = now + 10 minutes
    - `is_used` = false
 5. **Core API** enqueues a job to the **BullMQ** `email-otp` queue.
-6. **Email Worker** sends a styled HTML email via **Nodemailer** (Gmail SMTP) to the user's registered email address.
+6. **Email Worker** sends a styled HTML email via SMTP to the user's registered email address.
 7. **Core API** returns `200 OK` with a generic message "OTP sent to your registered email if the account exists" regardless of whether the user was found (anti-enumeration).
 8. **Client** submits `POST /api/v1/auth/verify-otp` with `{ username, otp }`.
 9. **Core API** resolves the username to a user, then fetches the most recent unused OTP for that user where `expires_at > now`.
@@ -38,8 +40,7 @@ Key capabilities:
    - **Refresh Token** — opaque UUID, long-lived, used only to obtain new token pairs:
      - Stored in the `REFRESH_TOKENS` table with `user_id`, `token_hash`, `family_id`, `expires_at` (TTL = 7 days), and `is_revoked = false`.
 8. **Client** stores the tokens:
-   - **React (Web):** Access token in memory (JS variable / React context). Refresh token in an `httpOnly`, `Secure`, `SameSite=Strict` cookie — never accessible to JavaScript.
-   - **React Native (Mobile):** Both tokens in `react-native-keychain` / `expo-secure-store`. Never stored in AsyncStorage or plain storage.
+   - Access token in memory (JS variable / React context). Refresh token in an `httpOnly`, `Secure`, `SameSite=Strict` cookie — never accessible to JavaScript.
 
 ### 2. Authenticated Request Flow
 1. **Client** sends a request with the `Authorization: Bearer <token>` header.
@@ -62,8 +63,7 @@ Key capabilities:
 ### 3. Token Refresh Flow (Rotation)
 1. **Client** detects the access token is expired (or receives a `401 Token Expired` response).
 2. **Client** sends `POST /api/v1/auth/refresh`:
-   - **React (Web):** The refresh token is automatically sent via the `httpOnly` cookie. No JS code touches it.
-   - **React Native (Mobile):** The app sends the request; the `refreshToken` is automatically included if the mobile client supports cookie management, or handled by the secure storage wrapper if using a custom cookie implementation.
+   - The refresh token is automatically sent via the `httpOnly` cookie. No JS code touches it.
 3. **Core API** hashes the incoming token and looks it up in `REFRESH_TOKENS`:
    - Checks `is_revoked = false` and `expires_at > now`.
    - If valid → proceed to step 4.
@@ -77,27 +77,40 @@ Key capabilities:
 
 #### Client-Side Implementation
 
-**React (Web) — Axios Interceptor:**
-- An Axios response interceptor catches `401` errors.
+- An HTTP response interceptor catches `401` errors.
 - It queues concurrent requests, calls `POST /auth/refresh` (cookie is sent automatically), receives the new access token in the response body, updates the in-memory token, and retries the queued requests.
-- Uses a mutex/flag to prevent multiple simultaneous refresh calls.
-
-**React Native (Mobile) — Axios Interceptor:**
-- Same interceptor pattern as web.
-- The cookie is automatically handled by the mobile OS's cookie store (or manually injected if using a specific library like `react-native-cookies`).
+- Uses a concurrency guard to prevent multiple simultaneous refresh calls.
 - If refresh fails (e.g., 401 response) → navigates the user to the login screen.
 
-### 4. Mobile Offline Authentication
-1. **Staff member** logs in while connected to Wi-Fi (receives token pair via the standard OTP flow).
-2. **React Native app** caches both tokens in `react-native-keychain` (secure storage).
-3. **When offline**, the app locally decodes the cached access token, checks `exp`, and verifies the `role` is `STAFF` to grant access to the QR scanner.
-4. **When back online**, the app first attempts a token refresh (if access token expired), then uses the fresh access token for the `POST /sync-offline-data` bulk upload. If the refresh token has also expired during the offline period, the app prompts re-authentication.
+### 4. Offline-Resilient Staff Check-In
+1. **Staff member** logs in while connected to the network (receives token pair via the standard OTP flow).
+2. The web app caches the access token in memory.
+3. **During brief connectivity loss**, the app locally decodes the cached access token, checks `exp`, and verifies the `role` is `STAFF` to grant access to the QR scanner.
+4. **When back online**, the app first attempts a token refresh (if access token expired), then uses the fresh access token for the batch check-in sync. If the refresh token has also expired during the offline period, the app prompts re-authentication.
 
 ### 5. Logout Flow
 1. **Client** sends `POST /api/v1/auth/logout`.
 2. **Core API** revokes the entire token family (marks current family's tokens as revoked/deleted).
-3. **React (Web):** Clears the in-memory access token and instructs the browser to delete the refresh cookie.
-4. **React Native (Mobile):** Deletes both tokens from secure storage.
+3. The client clears the in-memory access token and instructs the browser to delete the refresh cookie.
+
+### 6. Client-Side Route Navigation & Layout Shells
+1. **Client Route Guard** intercepts all navigation attempts:
+   - If no access token exists in AuthStore → redirect to `/login`.
+   - If access token exists, decode JWT locally to extract `role` and `exp`.
+   - If token is expired → trigger refresh flow (step 3); if refresh fails → redirect to `/login`.
+2. **Role-Based Route Authorization**:
+   - For each protected route, check the decoded `role` against the route's allowed roles.
+   - If role is unauthorized → redirect to fallback route or `/unauthorized` page.
+   - If authorized → proceed to render the route inside the appropriate layout shell.
+3. **Layout Shell Selection**:
+   - **Admin routes** render inside `AdminShell` (sidebar, admin toolbar, full-width layouts).
+   - **Student and Staff routes** render inside `MobileShell` (mobile-first, bottom navigation, compact).
+   - **Login/Public routes** render with no shell or a minimal header.
+4. **Session State in React Context (AuthStore)**:
+   - `accessToken` (in memory)
+   - `role` (decoded from JWT: `STUDENT`, `ADMIN`, or `STAFF`)
+   - `userId` (from JWT `sub` claim)
+   - `isAuthenticated` (boolean)
 
 ## Data Model Addition
 ### OtpToken Table (Mapped to `otp_tokens`)
@@ -136,7 +149,10 @@ RefreshToken {
 | **Missing/Invalid API Key**       | Return `401 Missing API Key` or `403 Invalid API Key` (Layer 1 Gateway).                                     |
 | **Brute-force OTP attempts**      | Rate limit `POST /api/v1/auth/verify-otp` (Redis counter) and return `429 Too Many Requests`.                |
 | **Email delivery failure**        | BullMQ job fails and retries. API continues to return `200 OK` to prevent user enumeration.                  |
-| **Offline access token expiry**   | Mobile app attempts refresh when back online. If refresh token is also expired → prompt re-authentication.    |
+| **Offline access token expiry**   | Web app attempts refresh when back online. If refresh token is also expired → prompt re-authentication.       |
+| **Unauthenticated route access**  | Route guard detects missing token, redirects to `/login`.                                                     |
+| **Unauthorized role for route**   | Route guard detects role mismatch, redirects to `/unauthorized` or fallback route.                            |
+| **Client-side token refresh failure** | Auth state is cleared, user redirected to `/login` to re-authenticate via OTP.                            |
 
 ## Constraints
 
@@ -149,40 +165,55 @@ RefreshToken {
 - **OTP hashing**: Codes must be stored hashed with bcrypt (never plaintext).
 - **Refresh token hashing**: The opaque token is hashed with bcrypt before storage.
 - **Rate limiting**: The `POST /api/v1/auth/verify-otp` endpoint must be rate-limited (Redis) to prevent brute-force attacks on the 6-digit code space.
-- **Platform storage rules**:
-  - React (Web): Access token in memory only. Refresh token in `httpOnly` cookie only. Never in `localStorage`.
-  - React Native (Mobile): Both tokens in `react-native-keychain` / `expo-secure-store`. Never in `AsyncStorage`.
+- **Token storage rules**: Access token in memory only. Refresh token in `httpOnly` cookie only. Never in `localStorage`.
+- **Client-side routing constraints**:
+  - Route guards must check token validity before allowing navigation.
+  - Role-based route authorization must not rely solely on client-side checks; API endpoints must also enforce role-based access.
+  - Admin pages must always render inside `AdminShell`. Student/Staff pages must render inside `MobileShell`.
+  - Access tokens must be decoded locally in the route guard; no API round-trip is needed for route authorization (except during refresh).
+- **Layout shell rules**:
+  - `AdminShell`: Sidebar, admin toolbar, full-width content areas.
+  - `MobileShell`: Mobile-first, bottom navigation, compact layouts optimized for staff field work and student registration flows.
 
 ## Acceptance Criteria
 
 ### OTP Login
-- [ ] A student can request an OTP via `POST /api/v1/auth/login` using their student ID and receive a success response regardless of account existence.
-- [ ] A staff/admin can request an OTP via `POST /api/v1/auth/login` using their assigned username and receive a success response regardless of account existence.
-- [ ] A valid OTP returns an access token (15 min TTL) and sets a secure `httpOnly` refresh token cookie (7 day TTL).
-- [ ] An expired or invalid OTP is rejected with `401`.
-- [ ] Brute-force OTP attempts are rate-limited and return `429 Too Many Requests`.
-- [ ] All OTP codes are stored as bcrypt hashes; raw codes never appear in server logs.
+- A student can request an OTP via `POST /api/v1/auth/login` using their student ID and receive a success response regardless of account existence.
+- A staff/admin can request an OTP via `POST /api/v1/auth/login` using their assigned username and receive a success response regardless of account existence.
+- A valid OTP returns an access token (15 min TTL) and sets a secure `httpOnly` refresh token cookie (7 day TTL).
+- An expired or invalid OTP is rejected with `401`.
+- Brute-force OTP attempts are rate-limited and return `429 Too Many Requests`.
+- All OTP codes are stored as bcrypt hashes; raw codes never appear in server logs.
 
 ### Token Refresh & Rotation
-- [ ] `POST /api/v1/auth/refresh` with a valid refresh token cookie returns a new access token and rotates the refresh token cookie.
-- [ ] Reusing a previously rotated refresh token revokes the **entire token family** and returns `401`.
-- [ ] The new refresh token shares the same `familyId` as the original.
-- [ ] Refresh tokens are stored as bcrypt hashes.
+- `POST /api/v1/auth/refresh` with a valid refresh token cookie returns a new access token and rotates the refresh token cookie.
+- Reusing a previously rotated refresh token revokes the **entire token family** and returns `401`.
+- The new refresh token shares the same `familyId` as the original.
+- Refresh tokens are stored as bcrypt hashes.
 
 ### RBAC & Middleware
-- [ ] The Auth Middleware correctly blocks unauthorized role-endpoint combinations with `403`.
-- [ ] A `STUDENT` cannot access `POST /check-in` or `DELETE /workshops`.
-- [ ] A `STAFF` member cannot access `POST /registrations` or `DELETE /workshops`.
-- [ ] Access token verification does not issue any database queries (verified via query logging under load test).
+- The Auth Middleware correctly blocks unauthorized role-endpoint combinations with `403`.
+- A `STUDENT` cannot access `POST /check-in` or `DELETE /workshops`.
+- A `STAFF` member cannot access `POST /registrations` or `DELETE /workshops`.
+- Access token verification does not issue any database queries (verified via query logging under load test).
+
+### Client-Side Routing & Session Management
+- Protected routes redirect unauthenticated users (missing access token) to `/login`.
+- Protected routes redirect users with an expired token to trigger refresh; if refresh succeeds, the original route is retried.
+- If refresh fails, the user is redirected to `/login` to re-authenticate via OTP.
+- Role-based route access is enforced: `STUDENT` users cannot access Admin routes, `ADMIN` users cannot access Staff routes, etc.
+- Unauthorized role access redirects to `/unauthorized` or a fallback route.
+- Admin routes (e.g., `/admin/workshops`, `/admin/reports`) render inside `AdminShell` with sidebar and admin toolbar.
+- Student and Staff routes render inside `MobileShell` with mobile-first layout and bottom navigation.
+- AuthStore correctly stores and decodes `accessToken`, `role`, `userId`, and `isAuthenticated`.
+- The HTTP interceptor catches `401` responses, attempts refresh, and retries the original request transparently.
 
 ### Client Integration
-- [ ] **React (Web):** Access token is stored in memory; refresh token is in an `httpOnly` cookie. `localStorage` is never used for tokens.
-- [ ] **React (Web):** Axios interceptor transparently refreshes on `401` without user interaction.
-- [ ] **React Native (Mobile):** Both tokens are stored in `react-native-keychain` / `expo-secure-store`.
-- [ ] **React Native (Mobile):** Axios interceptor handles refresh and retries failed requests.
-- [ ] The React Native app can authenticate the staff user offline using a cached, non-expired access token.
+- Access token is stored in memory; refresh token is in an `httpOnly` cookie. `localStorage` is never used for tokens.
+- HTTP interceptor transparently refreshes on `401` without user interaction.
+- The web app can grant staff offline access to the QR scanner using a cached, non-expired access token.
 
 ### Logout
-- [ ] `POST /api/v1/auth/logout` revokes the entire token family for the session and clears the cookie.
-- [ ] React clears in-memory token and deletes the refresh cookie.
-- [ ] React Native deletes both tokens from secure storage.
+- `POST /api/v1/auth/logout` revokes the entire token family for the session and clears the cookie.
+- Client clears in-memory token and deletes the refresh cookie.
+- After logout, all protected routes redirect to `/login`.
