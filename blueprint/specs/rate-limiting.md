@@ -19,21 +19,21 @@ Key capabilities:
 ### 1. Global request gate
 
 1. Every incoming request to `/api/v1/*` passes through the global rate limiter.
-2. The middleware reads or creates `rate-limit:global:{ip}` in Redis.
+2. The middleware tracks requests per IP using a Redis counter.
 3. If the counter exceeds `100 / 60 seconds`, the request is rejected with `429 Too Many Requests`.
 4. If under limit, the request proceeds.
 
 ### 2. Auth endpoint guard
 
 1. Requests to auth routes (`/api/v1/auth/*`) also pass through the auth limiter.
-2. The middleware checks `rate-limit:auth:{ip}` in Redis.
+2. The middleware tracks requests per IP using a Redis counter.
 3. If the count exceeds `5 / 60 seconds`, return `429` with `Retry-After`.
 4. Auth traffic is intentionally stricter than general traffic.
 
 ### 3. Registration user limit
 
 1. Authenticated students hitting `POST /api/v1/workshops/:id/register` pass through a per-user limiter.
-2. The limiter uses `rate-limit:registration:{userId}`.
+2. The limiter uses a per-user Redis counter keyed by user ID.
 3. If the student exceeds `10 / 60 seconds`, return `429` and do not enqueue a registration job.
 
 ### 4. Role-aware tiering
@@ -82,12 +82,7 @@ This ensures abusive requests are blocked before state changes occur.
 
 ## Data Model
 
-This feature does not add a database table. It uses Redis keys:
-
-- `rate-limit:global:{ip}`
-- `rate-limit:auth:{ip}`
-- `rate-limit:registration:{userId}`
-- `rate-limit:role:{role}:{ip}`
+This feature does not add a database table. It uses Redis counters with per-IP and per-user keys.
 
 Each key stores a sliding-window counter and expires after 60 seconds.
 

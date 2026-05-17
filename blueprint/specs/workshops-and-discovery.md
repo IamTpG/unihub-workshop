@@ -84,9 +84,9 @@ The system separates **stable metadata** from **live seat counts**:
 
 | Concern | Behavior |
 |---------|----------|
-| Published catalog | Cached under `workshops:published` for up to **5 minutes**, then reloaded from database. On cache failure, load from database directly. |
-| Workshop detail metadata | Cached per workshop `workshop:{id}:detail` for up to **5 minutes** (metadata excludes live slots). |
-| Live seats | Read from `workshop:{id}:slots` when present; otherwise use database `available_slots`. List view merges all slot keys in **one batch** per request. |
+| Published catalog | Cached in Redis for up to **5 minutes**, then reloaded from database. On cache failure, load from database directly. |
+| Workshop detail metadata | Cached per workshop in Redis for up to **5 minutes** (metadata excludes live slots). |
+| Live seats | Read from Redis slot counter when present; otherwise use database `available_slots`. List view merges all slot keys in **one batch** per request. |
 | Organizer edits | Invalidate published list and detail cache; refresh slot key when capacity changes. |
 
 Students must always see the best available seat count: prefer live slot keys over stale cached metadata values.

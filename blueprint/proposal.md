@@ -20,7 +20,7 @@ UniHub Workshop replaces this with a purpose-built platform that supports high-c
 | **Fast API path**        | Registration gate returns in < 200 ms via Redis soft reservation + async worker commit                                                                        |
 | **End-to-end lifecycle** | Discover workshop → register → pay (mock) → view ticket/QR → staff check-in                                                                                   |
 | **Demoability**          | Full flows runnable in browser (responsive web) for student, admin, and staff roles                                                                           |
-| **Course deliverables**  | OTP auth, RBAC, CSV student import, resilience (rate limit, idempotency, circuit breaker), notifications, AI-style PDF summary (mock), offline check-in queue |
+| **Course deliverables**  | OTP auth, RBAC, CSV student import, resilience (rate limit, idempotency, circuit breaker), notifications, AI PDF summary, offline check-in queue |
 
 
 ## Users and Needs
@@ -37,17 +37,17 @@ UniHub Workshop replaces this with a purpose-built platform that supports high-c
 
 ### In scope (MVP)
 
-- **Monorepo**: `apps/web`, `apps/api`, `apps/worker`; shared `packages/db`, `packages/shared`
+- **Monorepo**: Web app, API server, background worker; shared database and type packages
 - **Auth**: OTP login, JWT access token, refresh token rotation, RBAC middleware
-- **Workshops**: Published list/detail with Redis caching and live slot enrichment
-- **Registration**: Redis DECR gate, BullMQ worker, PostgreSQL authoritative seat decrement, idempotency keys, optional registration window
-- **Payments**: Mock payments, holding/expired states, payment-timeout jobs
+- **Workshops**: Published list/detail with caching and live slot counts
+- **Registration**: Fast Redis reservation gate, async worker commit, database authoritative seat decrement, idempotency, optional registration window
+- **Payments**: Mock payment provider, holding/expired states, payment-timeout jobs
 - **Check-in**: QR verify, single check-in, batch sync for offline queue
 - **Notifications**: SSE live stream + persisted notification list
-- **Student import**: Admin CSV upload → `StudentRecord` roster
+- **Student import**: Admin CSV upload + nightly automated cron import → student roster management
 - **AI summary**: Admin PDF upload → worker extracts text → summary on workshop
 - **Web UI**: Admin desktop shell, student mobile-first shell, staff mobile shell
-- **Resilience**: Global/auth/registration rate limits, payment circuit breaker, idempotency middleware
+- **Resilience**: Tiered rate limits, payment circuit breaker, idempotency middleware
 
 ### Out of scope (non-goals)
 
@@ -64,12 +64,12 @@ UniHub Workshop replaces this with a purpose-built platform that supports high-c
 
 | Risk                              | Mitigation                                                                        |
 | --------------------------------- | --------------------------------------------------------------------------------- |
-| Registration thundering herd      | Redis gate + rate limits + async worker concurrency                               |
-| Seat oversell                     | DB atomic decrement; worker rolls back Redis on 0-row update                      |
-| Double submit / retry storms      | Idempotency middleware (Redis SET NX, 24h TTL)                                    |
-| Payment gateway hang              | `opossum` circuit breaker in worker; HOLDING + timeout job                        |
-| Offline check-in data loss        | `localStorage` queue with idempotent batch sync API                               |
-| CSV roster drift                  | Students gated on `StudentRecord.status = ACTIVE`; import is admin-only           |
+| Registration thundering herd      | Redis reservation gate + tiered rate limits + async worker processing             |
+| Seat oversell                     | Database atomic decrement; worker compensates Redis on failure                    |
+| Double submit / retry storms      | Idempotency middleware (Redis-backed, 24h TTL)                                   |
+| Payment gateway hang              | Circuit breaker in worker; seat held with timeout job as fallback                |
+| Offline check-in data loss        | Browser-local queue with idempotent batch sync API                               |
+| CSV roster drift                  | Students gated on active roster status; import is admin-only                      |
 | Small team with minimum resources | Explicit non-goals; no microservices                                              |
 
 

@@ -101,7 +101,17 @@ Default pagination: `page=1`, `limit=10` (max 100).
 
 After import, temporary upload files are deleted.
 
-### 9. Roster enforcement (downstream)
+### 9. Nightly automated import (cron)
+
+In addition to manual uploads, the worker runs a **scheduled import job daily at 02:00** to keep the roster in sync with an externally maintained CSV file.
+
+1. The worker registers a repeatable job on startup. The source CSV path is configured via environment variable; if not set, the cron is registered but the job exits with a warning.
+2. On each run, the job processes the CSV using the same row rules as a manual import (upsert, row-level fault isolation).
+3. Duplicate cron registrations are prevented — the worker removes any existing repeatable job before re-registering on restart.
+
+This allows the roster to stay current without requiring daily manual admin uploads.
+
+### 10. Roster enforcement (downstream)
 
 - **OTP login** and **workshop registration** require the student’s email to exist on `StudentRecord` with `status = ACTIVE`.
 - The roster is **one-way** from CSV; there is no API sync back to the legacy SIS.

@@ -8,7 +8,7 @@
 | Choice                     | Rationale                                                                                        |
 | -------------------------- | ------------------------------------------------------------------------------------------------ |
 | Single API process         | Lowest ops overhead for course timeline; modules still enforce boundaries                        |
-| Separate `apps/worker`     | BullMQ processors must not block HTTP threads; payment and registration work is inherently async |
+| Separate Workers           | BullMQ processors must not block HTTP threads; payment and registration work is inherently async |
 | PostgreSQL (Neon) + Prisma | Relational integrity for registrations, users, workshops; Prisma for team speed                  |
 | Redis                      | Seat counters, list cache, rate limits, idempotency, SSE pub/sub                                 |
 | BullMQ                     | Registration, email OTP, payment timeout, notifications, AI summary jobs                         |
@@ -59,7 +59,7 @@ C4Container
   Rel(user, web, "HTTPS")
   Rel(web, api, "JSON /api/v1, SSE")
   Rel(api, db, "Prisma")
-  Rel(api, redis, "ioredis")
+  Rel(api, redis, "Cache/counters")
   Rel(api, worker, "Enqueue jobs")
   Rel(worker, db, "Prisma")
   Rel(worker, redis, "Pub/sub, counters")
@@ -73,13 +73,13 @@ C4Container
 
 ```text
 ┌─────────────┐     Bearer JWT + cookies      ┌──────────────────────────────────────┐
-│  Frontend   │ ───────────────────────────►│             Backend (Express)          │
+│  Frontend   │ ───────────────────────────►  │           Backend (Express)          │
 │  React/Vite │     SSE /notifications/stream │    middleware → modules → infra      │
 └─────────────┘                               └───────────┬──────────────────────────┘
        │ localStorage                                      │ enqueue
        │ (offline check-in)                                ▼
        │                                         ┌─────────────────┐
-       └──────── POST /check-ins/batch ────────►│  apps/worker    │
+       └──────── POST /check-ins/batch ────────► │  Workers        │
                                                  │  BullMQ workers │
                                                  └────────┬────────┘
                                                           │
@@ -96,41 +96,24 @@ Student → POST /api/v1/workshops/:id/register (+ x-idempotency-key)
   2. Idempotency middleware (Redis)
   3. Auth: role STUDENT, ACTIVE StudentRecord
   4. Validate workshop PUBLISHED, registration window (if set)
-  5. Redis DECR workshop:{id}:slots → if < 0, INCR and return Status 400 Workshop Full
+  5. Redis decrease slot counter → if < 0, increase counter and return Status 400 Workshop Full
   6. Enqueue registration-queue → 202 { jobId }
 
-Worker (registration.processor):
-  7. TX: UPDATE workshops SET available_slots = available_slots - 1 WHERE > 0
-  8. INSERT registration (PENDING → HOLDING or PAID)
-  9. If paid: paymentBreaker.createIntent OR free → PAID + qrStub + notification job
- 10. On DB failure: INCR Redis, fail job
+Worker (registration processor):
+  7. Atomically decrement the workshop's available slots in the database (only if slots remain)
+  8. Create the registration record (transitions from PENDING to HOLDING or PAID)
+  9. For paid workshops: request a payment intent via circuit breaker; for free workshops: mark as PAID, generate QR stub, and enqueue a notification
+ 10. On database failure: restore the Redis slot counter and fail the job for retry
 ```
 
 ### Critical flow: Offline check-in sync
 
 ```text
-Staff Scan (offline) → queue in localStorage (clientId, qrToken, workshopId, scannedAt)
-On online → POST /api/v1/check-ins/batch
-  → TX per batch; idempotent if checkedInAt already set
-  → Response: syncedIds[], failedIds[] for client retry/backoff
+1. While offline, the staff member scans QR codes and the web app queues each scan locally in browser storage
+2. When connectivity is restored, the app sends the queued scans to the batch check-in endpoint
+3. The server processes each item in a transaction; scans that were already checked in are treated as idempotent successes
+4. The response separates successfully synced IDs from failed IDs so the client can retry or surface errors
 ```
-
-## API Boundaries
-
-All public HTTP APIs use prefix `**/api/v1**`. Route composition lives in `apps/api/src/routes/index.ts`.
-
-
-| Boundary          | Base path                                                   | Auth                    | Roles             | Responsibility                           |
-| ----------------- | ----------------------------------------------------------- | ----------------------- | ----------------- | ---------------------------------------- |
-| Auth              | `/api/v1/auth`                                              | Public (rate-limited)   | —                 | OTP request/verify, refresh, logout      |
-| Student workshops | `/api/v1/workshops`                                         | Bearer JWT              | STUDENT           | List/detail published workshops          |
-| Registration      | `/api/v1/workshops/:id/register`, `/api/v1/registrations/*` | Bearer JWT              | STUDENT           | Register, list own, job status, mock pay |
-| Payments webhook  | `/api/v1/payments/webhook/:provider`                        | Signature + idempotency | —                 | Finalize HOLDING → PAID/FAILED           |
-| Admin workshops   | `/api/v1/admin/workshops`                                   | Bearer JWT              | ADMIN             | CRUD, stats, registration window         |
-| Admin PDF / AI    | `/api/v1/admin/workshops/:id/pdf`                           | Bearer JWT              | ADMIN             | Upload PDF, enqueue summary job          |
-| Student import    | `/api/v1/admin/import`                                      | Bearer JWT              | ADMIN             | CSV upload, import logs                  |
-| Check-in          | `/api/v1/check-ins/*`                                       | Bearer JWT              | STAFF, ADMIN      | verify, single, batch                    |
-| Notifications     | `/api/v1/notifications`                                     | Bearer JWT              | All authenticated | list, mark read; `/stream` SSE           |
 
 
 **Cross-cutting middleware** (order matters per route):
@@ -140,23 +123,24 @@ All public HTTP APIs use prefix `**/api/v1**`. Route composition lives in `apps/
 - `idempotency` — registration + webhook writes
 - Rate limiters: global IP, auth IP, registration per-user
 
-**Worker queues** (contract in `packages/shared`):
+**Worker queues**:
 
 
 | Queue                | Producer            | Consumer                  | Purpose                       |
 | -------------------- | ------------------- | ------------------------- | ----------------------------- |
-| `registration-queue` | API                 | registration.processor    | DB seat + payment intent      |
-| `payment-timeout`    | registration worker | payment-timeout.processor | Expire HOLDING → release seat |
-| `email-otp`          | API                 | mail.processor            | Send OTP                      |
-| `notification-queue` | Workers             | notification.processor    | Persist + Redis pub/sub SSE   |
-| `ai-summary`         | API                 | ai-summary.processor      | PDF parse + mock summary      |
+| `registration-queue` | API                 | Registration processor    | DB seat + payment intent      |
+| `payment-timeout`    | Registration worker | Timeout processor         | Expire HOLDING → release seat |
+| `email-otp`          | API                 | Mail processor            | Send OTP                      |
+| `notification-queue` | Workers             | Notification processor    | Persist + pub/sub for SSE     |
+| `ai-summary`         | API                 | AI summary processor      | PDF parse + summary           |
+| `student-import`     | API / Cron (02:00)  | Import processor          | CSV roster upsert             |
 
 
-**Module ↔ infra rule:** Domain modules call services/repositories; they do not import payment/Redis clients directly except through `apps/api/src/infra/`* adapters.
+**Module ↔ infra rule:** Domain modules call services/repositories; they do not import infrastructure clients (payment, cache, queue) directly — they go through infra adapters.
 
 ## Database Schema Logic
 
-PostgreSQL via Prisma (`packages/db/prisma/schema.prisma`). Naming: snake_case columns, UUID primary keys.
+PostgreSQL via Prisma ORM. Naming: snake_case columns, UUID primary keys.
 
 ### Entity relationships (logical)
 
@@ -183,8 +167,8 @@ ImportLog (CSV job audit)
 ### Seat accounting
 
 - **Authoritative:** `workshops.available_slots` decremented in worker transaction.
-- **Fast path:** Redis key `workshop:{id}:slots` initialized on publish/admin update; DECR at API gate; INCR on worker failure or payment expiry processor.
-- **List API:** Cached published list `workshops:published` (5 min TTL); per-item slots via `MGET workshop:{id}:slots`.
+- **Fast path:** Redis slot counter initialized on publish/admin update; DECR at API gate; INCR on worker failure or payment expiry.
+- **List API:** Cached published list (5 min TTL); live slot counts merged from Redis via batch lookup.
 
 ### Registration status machine
 
@@ -221,7 +205,7 @@ Tokens:
 
 ### Burst traffic (rate limiting)
 
-Stored in Redis (`express-rate-limit` + Redis store):
+Stored in Redis (rate-limit middleware + Redis store):
 
 - Global: 100 req / 60s per IP
 - Auth: 5 req / 60s per IP
@@ -232,7 +216,7 @@ On `429`: `Retry-After` header; no downstream work.
 
 ### Unstable payment gateway
 
-`opossum` circuit breaker wraps `PaymentProvider.createIntent` in the worker:
+Circuit breaker wraps `PaymentProvider.createIntent` in the worker:
 
 - Timeout 5s; open circuit on sustained failures
 - **Fallback:** registration stays `HOLDING` without `paymentRef`; student notified to retry; `payment-timeout` job still scheduled
@@ -242,9 +226,9 @@ Browse/read paths (`GET /workshops`) never call payment adapter.
 ### Double charge / duplicate registration
 
 - **Client:** `x-idempotency-key` required on `POST .../register`
-- **Server:** Redis `idempotency:{key}` — `IN_PROGRESS` → 409; `DONE` → replay stored response
+- **Server:** Redis-backed claim lock — in-progress → 409; completed → replay stored response
 - **DB:** `registrations.idempotency_key` UNIQUE
-- **Webhook:** same idempotency middleware
+- **Webhook:** same idempotency mechanism
 
 TTL: 24 hours.
 
@@ -271,21 +255,7 @@ TTL: 24 hours.
 
 | Mechanism              | Scope                                                                   |
 | ---------------------- | ----------------------------------------------------------------------- |
-| **Husky** `pre-commit` | Runs `lint-staged`                                                      |
-| **lint-staged**        | `apps/api/src/**/*.ts` → format + lint                                  |
-| **npm scripts**        | `build:api`, `build:worker`, `build:web`, `build:shared`, `db:generate` |
-| **Manual**             | `docs/smoke-tests.http` for API smoke checks                            |
-
-
-## Alignment with OpenSpec
-
-
-| Area                           | Canonical detail                                   |
-| ------------------------------ | -------------------------------------------------- |
-| Requirements (Given/When/Then) | `openspec/specs/`*                                 |
-| In-flight work                 | `openspec/changes/*`                               |
-| Architecture (this file)       | `blueprint/design.md`                              |
-| Feature behavior specs         | `blueprint/specs/*.md` — **after design approval** |
-
-
-Active changes to incorporate in implementation (not duplicated as feature specs here): `add-offline-checkin-queue`, `persistent-notifications`, `implement-ai-summary-feature`, `add-registration-window`, `build-staff-qr-checkin-scan`.
+| **Husky** `pre-commit` | Runs lint-staged                                                        |
+| **lint-staged**        | API source files → format + lint                                        |
+| **npm scripts**        | Build commands for api, worker, web, shared packages, DB codegen        |
+| **Manual**             | HTTP file for API smoke checks                                           |

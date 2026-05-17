@@ -11,8 +11,8 @@ Paid workshops enter a **holding** state until payment succeeds, fails, or times
 
 ### 1. Register for a workshop
 
-1. A **student** submits registration for a published workshop with header `x-idempotency-key` (unique per logical attempt).
-2. The system validates: authenticated student, **ACTIVE** `StudentRecord`, workshop published, optional registration window, no conflicting existing registration.
+1. A **student** submits registration for a published workshop with an idempotency key.
+2. The system validates: authenticated student, workshop published, optional registration window, no conflicting existing registration.
 3. The system performs a **fast seat check** (decrement live slot counter). If no seats remain → reject without creating a registration.
 4. The system accepts the request with **`202 Accepted`** and `{ jobId }`, and processes the reservation **asynchronously**.
 5. Duplicate submissions with the same idempotency key receive the **same response** as the first successful call, or `409` if still in progress.
@@ -51,7 +51,7 @@ When the payment gateway is slow or unavailable, the registration may remain **`
 4. The student sees a **result** screen after the system updates status (poll registration until `PAID` or `FAILED`, or show processing message on timeout).
 
 **Webhook (demo):** `POST /api/v1/payments/webhook/mock`  
-Body includes `eventType`, `intentId` (matches `paymentRef`), `eventId` (unique per delivery).
+Body includes `eventType`, `intentId`, `eventId`.
 
 ### 4. Payment webhook (provider callback)
 

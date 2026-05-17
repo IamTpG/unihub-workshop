@@ -16,7 +16,7 @@
 
 If no workshop is selected, verification still works but cannot detect a ticket issued for a different session.
 
-> **Dependency:** Staff need a published-workshop list they are allowed to read. Student-only discovery APIs are insufficient; provide a staff-compatible catalog or shared endpoint (see `workshops-and-discovery.md`).
+> **Dependency:** Staff need a published-workshop list they are allowed to read. Student-only discovery APIs are insufficient; provide a staff-compatible catalog or shared endpoint.
 
 ### 2. Verify a ticket (online)
 
@@ -84,7 +84,7 @@ Staff can view queue status on the scan page:
 - Panel: workshop name, scanned time, status, failure reason
 - Actions: Sync Now, Retry on failed items
 
-Queue is persisted under `unihub:checkin-queue` in browser storage. Corrupted storage resets to an empty queue. Items older than **48 hours** are pruned on load.
+Queue is persisted in browser local storage. Corrupted storage resets to an empty queue. Items older than **48 hours** are pruned on load.
 
 ### 7. Legacy single check-in by registration id
 
@@ -161,7 +161,7 @@ retryCount, failureReason?
 ## Constraints
 
 - **Idempotent check-in:** never overwrite an existing `checkedInAt`.
-- **Atomic batch:** eligible updates in one transaction; per-row `UPDATE WHERE checkedInAt IS NULL` avoids double-stamp under concurrency.
+- **Atomic batch:** eligible updates in one transaction; per-row conditional update (only where not yet checked in) avoids double-stamp under concurrency.
 - **No service worker / IndexedDB** in MVP — `localStorage` queue only.
 - **QR encoding:** MVP uses registration UUID as token; batch sync keys off the same value.
 - **4xx verify errors are not offline-retried** — they are business failures, not connectivity failures.

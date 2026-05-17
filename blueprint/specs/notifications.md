@@ -36,7 +36,7 @@ When a registration or payment milestone completes, the system enqueues a notifi
 For each notification job:
 
 1. Insert (or idempotently upsert) a row in `notifications` for the user: `type`, `title`, `body`, `isRead = false`.
-2. Publish a JSON event to the user’s real-time channel (`notifications:user:{userId}`).
+2. Publish a JSON event to the user's dedicated real-time channel via Redis Pub/Sub.
 
 If persistence fails, the job retries and nothing is published. If publish fails after persistence, the job retries; the user can still see the notification via history.
 
