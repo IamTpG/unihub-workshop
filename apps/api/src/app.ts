@@ -16,7 +16,7 @@ const app = express();
 // Global Middlewares
 app.use(helmet());
 app.use(globalLimiter);
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+app.use(cors({ origin: env.CORS_ORIGIN.split(","), credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

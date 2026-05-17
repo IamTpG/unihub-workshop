@@ -17,12 +17,6 @@ export const MobileShell: React.FC = () => {
 
   const isStudent = user?.role === 'STUDENT';
 
-  const getTabStyle = (path: string) => ({
-    ...tabStyle,
-    color: location.pathname === path ? 'var(--accent)' : 'var(--text)',
-    fontWeight: location.pathname === path ? '600' : '400',
-  });
-
   return (
     <div style={containerStyle}>
       <header style={headerStyle}>
@@ -59,10 +53,7 @@ export const MobileShell: React.FC = () => {
         </div>
       </header>
       <main 
-        style={{
-          ...contentStyle,
-          paddingBottom: isStudent ? '24px' : '72px',
-        }}
+        style={contentStyle}
       >
         {/* Restrict content width to prevent awkward stretching on iPads/Desktop views */}
         <div style={innerContentStyle}>
@@ -70,17 +61,6 @@ export const MobileShell: React.FC = () => {
         </div>
       </main>
       
-      {/* Render bottom nav ONLY for staff users */}
-      {!isStudent && (
-        <nav style={bottomNavStyle}>
-          <Link to="/manage" style={getTabStyle('/manage')}>
-            <span style={tabTextStyle}>Desk</span>
-          </Link>
-          <Link to="/manage/scan" style={getTabStyle('/manage/scan')}>
-            <span style={tabTextStyle}>Scan QR</span>
-          </Link>
-        </nav>
-      )}
 
       <ConfirmModal
         isOpen={showLogoutConfirm}
@@ -163,32 +143,3 @@ const innerContentStyle: React.CSSProperties = {
   padding: '20px 16px',
 };
 
-const bottomNavStyle: React.CSSProperties = {
-  position: 'fixed',
-  bottom: 0,
-  left: 0,
-  right: 0,
-  height: '64px',
-  backgroundColor: 'var(--bg)',
-  borderTop: '1px solid var(--border)',
-  display: 'flex',
-  justifyContent: 'space-around',
-  alignItems: 'center',
-  boxShadow: 'var(--shadow)',
-  zIndex: 10,
-};
-
-const tabStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  textDecoration: 'none',
-  gap: '4px',
-  flex: 1,
-  justifyContent: 'center',
-  height: '100%',
-};
-
-const tabTextStyle: React.CSSProperties = {
-  fontSize: '12px',
-};

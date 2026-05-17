@@ -7,7 +7,6 @@ import { MobileShell } from '../layout/MobileShell';
 // Lazy loads or placeholders for direct import
 import StudentHome from '../pages/student/Home';
 import WorkshopDetail from '../pages/student/WorkshopDetail';
-import StaffDesk from '../pages/staff/Desk';
 import StaffScan from '../pages/staff/Scan';
 import Unauthorized from '../pages/public/Unauthorized';
 import Login from '../pages/public/Login';
@@ -145,7 +144,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <StaffDesk />,
+        element: <Navigate to="/manage/scan" replace />,
       },
       {
         path: 'scan',
