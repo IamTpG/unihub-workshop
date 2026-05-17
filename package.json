@@ -17,6 +17,7 @@
     "build:shared": "npm run build --workspace @unihub/shared",
     "build:db": "npm run build --workspace @unihub/db",
     "db:generate": "npm run generate --workspace @unihub/db",
+    "db:migrate": "npm run migrate --workspace @unihub/db",
     "db:seed": "npm run seed --workspace @unihub/db",
     "dev:web": "npm run dev --workspace @unihub/web",
     "build:web": "npm run build:shared && npm run build:db && npm run build --workspace @unihub/web",
